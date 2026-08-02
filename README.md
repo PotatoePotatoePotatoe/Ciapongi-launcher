@@ -4,10 +4,6 @@
   **Oficjalny launcher dla społeczności CiapongiRP**  
   Szybki, nowoczesny i zoptymalizowany launcher do gry Minecraft. Zbudowany z myślą o maksymalnej wydajności dla słabszych komputerów i niesamowitym designie!
 
-  [![Wydanie](https://img.shields.io/github/v/release/PotatoePotatoePotatoe/Ciapongi-launcher?style=flat-square&color=blue)](https://github.com/PotatoePotatoePotatoe/Ciapongi-launcher/releases/latest)
-  [![Platformy](https://img.shields.io/badge/Platformy-Windows%20%7C%20Linux-lightgray?style=flat-square)](#)
-  [![Technologie](https://img.shields.io/badge/Zbudowane%20w-Electron%20%2B%20React-61dafb?style=flat-square)](#)
-
   [**Pobierz Najnowszą Wersję (Windows & Linux)**](https://github.com/PotatoePotatoePotatoe/Ciapongi-launcher/releases/latest)
 </div>
 
