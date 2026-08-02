@@ -2,6 +2,13 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.0.3]
+### Dodano (Added)
+- **Logika aktualizacji (electron-updater):** Właściwa implementacja sprawdzania, pobierania i instalowania aktualizacji launchera za pośrednictwem GitHub Releases w backendzie aplikacji (obsługa `main-win.js` i `main-linux.js`).
+- **Interfejs Aktualizacji:** Dodano do sekcji "Ustawienia" pełen, funkcjonalny panel informujący w czasie rzeczywistym o dostępności aktualizacji (z paskiem postępu) oraz przełącznik pobierania w tle.
+
+### Wcześniejsze wersję lauchera zostały usnięte ze względu na zawierające prywatne dane konta microsoft
+
 ## [1.0.2]
 ### Zmieniono (Changed)
 - **Przebudowa interfejsu (Ustawienia):** Zoptymalizowano układ i rozkład opcji. "Wykryta specyfikacja komputera" oraz "Motywy GUI" znajdują się po prawej stronie, podczas gdy po lewej zgrupowano podstawowe opcje i nowo powstałą, rozwijaną (w formie akordeonu) sekcję "Ustawienia zaawansowane".
