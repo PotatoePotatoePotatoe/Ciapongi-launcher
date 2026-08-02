@@ -593,7 +593,7 @@ ipcMain.handle('login-microsoft', async () => {
           Properties: {
             AuthMethod: 'RPS',
             SiteName: 'user.auth.xboxlive.com',
-            RpsTicket: msAccessToken
+            RpsTicket: msAccessToken.startsWith('d=') ? msAccessToken : `d=${msAccessToken}`
           },
           RelyingParty: 'http://auth.xboxlive.com',
           TokenType: 'JWT'
@@ -853,6 +853,36 @@ ipcMain.handle('switch-account', async (event, { index }) => {
   config.nickname = acc.nickname;
   config.loginType = acc.type;
   config.microsoftAuth = acc.microsoftAuth || null;
+  writeConfig(config);
+  return { success: true, config };
+});
+
+// IPC - Usunięcie konta
+ipcMain.handle('remove-account', async (event, { index }) => {
+  const config = readConfig();
+  if (!config.accounts || index < 0 || index >= config.accounts.length) {
+    return { success: false, error: 'Nieprawidłowy indeks konta.' };
+  }
+  
+  config.accounts.splice(index, 1);
+  
+  if (config.accounts.length === 0) {
+    config.activeAccountIndex = 0;
+    config.nickname = 'Gracz';
+    config.loginType = 'offline';
+    config.microsoftAuth = null;
+  } else {
+    if (index === config.activeAccountIndex || config.activeAccountIndex >= config.accounts.length) {
+      config.activeAccountIndex = 0;
+    } else if (index < config.activeAccountIndex) {
+      config.activeAccountIndex -= 1;
+    }
+    const acc = config.accounts[config.activeAccountIndex];
+    config.nickname = acc.nickname;
+    config.loginType = acc.type;
+    config.microsoftAuth = acc.microsoftAuth || null;
+  }
+  
   writeConfig(config);
   return { success: true, config };
 });
@@ -2046,7 +2076,7 @@ ipcMain.handle('launch-game', async () => {
             Properties: {
               AuthMethod: 'RPS',
               SiteName: 'user.auth.xboxlive.com',
-              RpsTicket: msAccessToken
+              RpsTicket: msAccessToken.startsWith('d=') ? msAccessToken : `d=${msAccessToken}`
             },
             RelyingParty: 'http://auth.xboxlive.com',
             TokenType: 'JWT'
@@ -2097,6 +2127,9 @@ ipcMain.handle('launch-game', async () => {
             refresh_token: msRefreshToken,
             expiresAt: Date.now() + (mcLoginRes.data.expires_in * 1000)
           };
+          if (config.accounts && typeof config.activeAccountIndex === 'number' && config.accounts[config.activeAccountIndex]) {
+            config.accounts[config.activeAccountIndex].microsoftAuth = config.microsoftAuth;
+          }
           writeConfig(config);
           logToFile("[SYSTEM] Sesja Microsoft została pomyślnie odświeżona.");
         } catch (err) {

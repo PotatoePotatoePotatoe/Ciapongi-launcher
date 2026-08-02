@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('api', {
   addServerToMinecraft: () => ipcRenderer.invoke('add-server-to-minecraft'),
   addAccount: (data) => ipcRenderer.invoke('add-account', data),
   switchAccount: (data) => ipcRenderer.invoke('switch-account', data),
+  removeAccount: (data) => ipcRenderer.invoke('remove-account', data),
   
   // Modpack GitHub Sync
   syncPack: (force) => ipcRenderer.invoke('sync-pack', force),

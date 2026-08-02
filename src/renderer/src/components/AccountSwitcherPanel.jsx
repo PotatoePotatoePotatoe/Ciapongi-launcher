@@ -1,7 +1,7 @@
-﻿import React, { useEffect, useRef } from 'react';
-import { UserCheck, UserPlus, ChevronRight, ShieldCheck, User } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { UserCheck, UserPlus, ChevronRight, ShieldCheck, User, Trash2 } from 'lucide-react';
 
-function AccountSwitcherPanel({ config, onSwitch, onAddOffline, onAddMicrosoft, onClose }) {
+function AccountSwitcherPanel({ config, onSwitch, onRemove, onAddOffline, onAddMicrosoft, onClose }) {
   const panelRef = useRef(null);
 
   // Zamknij panel klikajac poza nim
@@ -62,7 +62,7 @@ function AccountSwitcherPanel({ config, onSwitch, onAddOffline, onAddMicrosoft, 
                 gap: '10px',
                 padding: '8px 10px',
                 borderRadius: '10px',
-                background: isActive ? 'rgba(var(--color-primary-rgb, 139,92,246),0.15)' : 'transparent',
+                background: isActive ? 'var(--color-primary-glow)' : 'transparent',
                 border: isActive ? '1px solid rgba(255,255,255,0.10)' : '1px solid transparent',
                 cursor: isActive ? 'default' : 'pointer',
                 transition: 'background 0.15s',
@@ -75,7 +75,7 @@ function AccountSwitcherPanel({ config, onSwitch, onAddOffline, onAddMicrosoft, 
               <div style={{
                 width: '34px', height: '34px', borderRadius: '8px', flexShrink: 0,
                 background: acc.type === 'microsoft'
-                  ? 'linear-gradient(135deg, #06b6d4, #8b5cf6)'
+                  ? 'var(--gradient-primary)'
                   : 'linear-gradient(135deg, #6b7280, #374151)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontWeight: '700', fontSize: '15px', color: '#fff'
@@ -88,7 +88,7 @@ function AccountSwitcherPanel({ config, onSwitch, onAddOffline, onAddMicrosoft, 
                 <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {acc.nickname}
                 </div>
-                <div style={{ fontSize: '11px', color: acc.type === 'microsoft' ? '#06b6d4' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ fontSize: '11px', color: acc.type === 'microsoft' ? 'var(--color-secondary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   {acc.type === 'microsoft' ? <ShieldCheck size={10} /> : <User size={10} />}
                   {acc.type === 'microsoft' ? 'Premium' : 'Offline'}
                 </div>
@@ -98,6 +98,20 @@ function AccountSwitcherPanel({ config, onSwitch, onAddOffline, onAddMicrosoft, 
               {isActive && (
                 <UserCheck size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
               )}
+              
+              {/* Przycisk usuwania */}
+              <div 
+                onClick={(e) => { e.stopPropagation(); onRemove(idx); }}
+                style={{ 
+                  padding: '4px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', transition: 'background 0.15s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                title="Usuń konto"
+              >
+                <Trash2 size={14} />
+              </div>
             </button>
           );
         })}
@@ -111,10 +125,10 @@ function AccountSwitcherPanel({ config, onSwitch, onAddOffline, onAddMicrosoft, 
             width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
             padding: '8px 10px', borderRadius: '8px',
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: '#06b6d4', fontSize: '12px', fontWeight: '600',
+            color: 'var(--color-secondary)', fontSize: '12px', fontWeight: '600',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(6,182,212,0.08)'}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--color-secondary-glow)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
           <ShieldCheck size={14} />

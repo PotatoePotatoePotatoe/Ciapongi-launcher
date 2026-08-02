@@ -146,6 +146,14 @@ function App() {
     }
   }, []);
 
+  // Usuwanie konta
+  const handleRemoveAccount = useCallback(async (index) => {
+    const res = await window.api.removeAccount({ index });
+    if (res?.success && res.config) {
+      setConfig(res.config);
+    }
+  }, []);
+
   // Dodanie konta offline
   const handleAddOfflineAccount = useCallback(async (nickname) => {
     const res = await window.api.addAccount({ type: 'offline', nickname, microsoftAuth: null });
@@ -282,6 +290,7 @@ function App() {
               <AccountSwitcherPanel
                 config={config}
                 onSwitch={handleSwitchAccount}
+                onRemove={handleRemoveAccount}
                 onAddOffline={() => setShowAddOfflineModal(true)}
                 onAddMicrosoft={handleAddMicrosoftAccount}
                 onClose={() => setShowAccountSwitcher(false)}

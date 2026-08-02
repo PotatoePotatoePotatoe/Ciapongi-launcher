@@ -229,7 +229,7 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
           )}
 
           {/* Logi/Status pod przyciskiem */}
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px', fontWeight: '500' }}>
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px', fontWeight: '500', lineHeight: '1.5', paddingBottom: '12px', minHeight: '28px' }}>
             {statusMessage}
           </div>
         </div>

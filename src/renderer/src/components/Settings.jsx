@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, FolderOpen, RefreshCw, Cpu, Sparkles, Palette } from 'lucide-react';
+import { Save, AlertCircle, FolderOpen, RefreshCw, Cpu, Sparkles, Palette, User, ChevronDown } from 'lucide-react';
 import { THEMES } from '../themes';
 
 function getCoresLabel(cores) {
@@ -32,13 +32,13 @@ function Settings({ config, onSave }) {
   const [loginError, setLoginError] = useState(null);
   const [installingMods, setInstallingMods] = useState(false);
   const [installStatus, setInstallStatus] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const installRecommendedModsPackage = async () => {
     setInstallingMods(true);
     setInstallStatus('Inicjalizacja pobierania pakietu optymalizacji...');
 
     const modsToInstall = [
-      { id: 'fabric-api', name: 'Fabric API' },
       { id: 'yacl', name: 'YetAnotherConfigLib (YACL)' },
       { id: 'cloth-config', name: 'Cloth Config API' },
       { id: 'indium', name: 'Indium' },
@@ -201,95 +201,6 @@ function Settings({ config, onSave }) {
           {/* ═══════════════ LEWA KOLUMNA ═══════════════ */}
           <div className="settings-col">
 
-            {/* Uwierzytelnianie i typ konta */}
-            <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <label className="form-label" style={{ marginBottom: 0, fontWeight: '700' }}>Uwierzytelnianie (Typ konta)</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <button
-                  type="button"
-                  className={`btn ${loginType === 'offline' ? 'btn-primary' : 'btn-outline'}`}
-                  onClick={handleMicrosoftLogout}
-                  style={{ height: '42px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}
-                >
-                  Konto Offline (Non-Premium)
-                </button>
-                <button
-                  type="button"
-                  className={`btn ${loginType === 'microsoft' ? 'btn-primary' : 'btn-outline'}`}
-                  onClick={() => setLoginType('microsoft')}
-                  style={{ height: '42px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}
-                >
-                  Konto Premium (Microsoft)
-                </button>
-              </div>
-
-              {loginType === 'offline' ? (
-                <div className="form-group" style={{ marginBottom: 0, marginTop: '8px' }}>
-                  <label className="form-label">Nazwa gracza (Nick)</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={nickname}
-                    onChange={(e) => setNickname(e.target.value)}
-                    placeholder="Wpisz swój pseudonim"
-                    style={{ height: '44px' }}
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Nazwa użytkownika używana do logowania offline w grze.
-                  </span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-                  {microsoftAuth ? (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div className="avatar" style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '16px' }}>
-                          {microsoftAuth.name ? microsoftAuth.name[0].toUpperCase() : 'M'}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>{microsoftAuth.name}</span>
-                          <span style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: '600' }}>Połączono (Premium Microsoft)</span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        onClick={handleMicrosoftLogout}
-                        style={{ height: '34px', padding: '0 12px', fontSize: '12px', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', cursor: 'pointer' }}
-                      >
-                        Wyloguj się
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={handleMicrosoftLogin}
-                        disabled={isLoggingIn}
-                        style={{ height: '44px', gap: '8px', background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', width: '100%', cursor: 'pointer' }}
-                      >
-                        {isLoggingIn ? (
-                          <>
-                            <RefreshCw className="animate-spin" size={16} />
-                            <span>Łączenie z usługami Microsoft...</span>
-                          </>
-                        ) : (
-                          <span>Zaloguj się przez Microsoft</span>
-                        )}
-                      </button>
-                      {loginError && (
-                        <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: '600' }}>{loginError}</span>
-                      )}
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        Logowanie odbywa się bezpiecznie przez oficjalne serwery uwierzytelniania Microsoft/Xbox.
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Alokacja pamięci RAM */}
             <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -320,7 +231,7 @@ function Settings({ config, onSave }) {
                 </div>
               )}
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Zalecana alokacja dla paczek modów to 4-6 GB (4096 - 6144 MB).
+                Zalecana alokacja dla paczek modów to 6-8 GB (6144 - 8192 MB).
               </span>
 
               <div style={{ height: '1px', background: 'var(--border-color)', margin: '8px 0' }}></div>
@@ -354,10 +265,154 @@ function Settings({ config, onSave }) {
               </div>
             </div>
 
+
+            {/* Ustawienia zaawansowane */}
+            <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div 
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                onClick={() => setShowAdvanced(!showAdvanced)}
+              >
+                <h3 style={{ fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>
+                  Ustawienia zaawansowane
+                </h3>
+                <ChevronDown size={18} style={{ color: 'var(--text-muted)', transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }} />
+              </div>
+
+              {showAdvanced && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Katalog gry (.minecraft)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={gameDir}
+                    onChange={(e) => setGameDir(e.target.value)}
+                    style={{ flexGrow: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={async () => {
+                      const selected = await window.api.selectDirectory();
+                      if (selected) setGameDir(selected);
+                    }}
+                    style={{ padding: '0 16px', gap: '6px', height: '46px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center' }}
+                    title="Wybierz folder z dysku"
+                  >
+                    <FolderOpen size={16} />
+                    <span>Wybierz</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Wersja Javy</label>
+                <select
+                  className="form-input"
+                  value={javaVersion}
+                  onChange={(e) => setJavaVersion(e.target.value)}
+                  style={{ width: '100%', height: '46px', background: 'rgba(25, 25, 35, 0.9)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', outline: 'none' }}
+                >
+                  <option value="auto">Automatyczna (zależna od wersji Minecrafta)</option>
+                  <option value="17">Java 17 (LTS — MC 1.17 – 1.20.4, w tym 1.20.1 ✓)</option>
+                  <option value="21">Java 21 (LTS — MC 1.20.5+, eksperymentalnie 1.20.1)</option>
+                </select>
+                <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5', paddingBottom: '4px', marginTop: '4px' }}>
+                  Java 17 jest oficjalnie wymaganą wersją dla Minecraft 1.20.1. Java 21 działa, lecz może powodować problemy z niektórymi modami. Przy zmianie wersja zostanie pobrana automatycznie.
+                </span>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Niestandardowa ścieżka do Javy ({isWin ? 'java.exe' : 'java'})</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={javaPath}
+                  onChange={(e) => setJavaPath(e.target.value)}
+                  placeholder="Pozostaw puste, aby używać wbudowanej Javy"
+                  style={{ height: '46px' }}
+                />
+                <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5', paddingBottom: '4px', marginTop: '4px' }}>
+                  Wypełnij tylko wtedy, gdy chcesz wskazać własny plik `{isWin ? 'java.exe' : 'java'}` zainstalowany ręcznie na komputerze.
+                </span>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Profil flag JVM (Java Garbage Collector)</label>
+                <select
+                  className="form-input"
+                  value={jvmProfile}
+                  onChange={(e) => setJvmProfile(e.target.value)}
+                  style={{ width: '100%', height: '46px', background: 'rgba(25, 25, 35, 0.9)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', outline: 'none' }}
+                >
+                  <option value="auto">Automatyczny (Rekomendowany dla Twojego sprzętu)</option>
+                  <option value="none">Brak (Domyślne parametry Javy)</option>
+                  <option value="ultra_potato">⚠️ Ultra Potato (Ekstremalnie słabe PC, ≤4GB RAM)</option>
+                  <option value="potato">Słaby PC (Potato GC - najniższe zużycie RAM)</option>
+                  <option value="optimized_g1gc">Zoptymalizowany G1GC (Aikar's - stabilniejsze klatki, zalecany)</option>
+                  <option value="extreme_zgc">Ekstremalny ZGC (Najniższe opóźnienia, dla mocnych PC i Javy 17/21)</option>
+                </select>
+                <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5', paddingBottom: '4px', marginTop: '4px' }}>
+                  Zoptymalizowane argumenty uruchamiania Javy pomagają wyeliminować mikroprzycięcia (stuttering) spowodowane odśmiecaniem pamięci.
+                </span>
+              </div>
+                </div>
+              )}
+            </div>
+
           </div> {/* koniec lewej kolumny */}
 
           {/* ═══════════════ PRAWA KOLUMNA ═══════════════ */}
           <div className="settings-col">
+
+            {/* ═══════════════ MOTYWY GUI ═══════════════ */}
+            <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                  <Palette size={18} />
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '14px', fontWeight: '700', margin: 0 }}>Wygląd interfejsu (Motyw)</h4>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Zmiana jest natychmiastowa — nie trzeba zapisywać.</p>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '10px' }}>
+                {Object.entries(THEMES).map(([id, t]) => {
+                  const isActive = theme === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        setTheme(id);
+                        // Natychmiastowy podgląd bez zapisywania
+                        const root = document.documentElement;
+                        Object.entries(t.vars).forEach(([k, v]) => root.style.setProperty(k, v));
+                        document.body.style.background = t.vars['--color-bg'];
+                      }}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+                        padding: '12px 8px', borderRadius: '12px', cursor: 'pointer',
+                        border: isActive ? '2px solid var(--color-primary)' : '2px solid rgba(255,255,255,0.06)',
+                        background: isActive ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {/* Podgląd kolorów */}
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: t.preview[0] }} />
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: t.preview[1] }} />
+                      </div>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: isActive ? 'var(--color-primary)' : 'var(--text-muted)', textAlign: 'center', lineHeight: '1.2' }}>
+                        {t.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Wykryta specyfikacja komputera */}
             <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -455,160 +510,8 @@ function Settings({ config, onSave }) {
               </div>
             </div>
 
-            {/* GitHub Token */}
-            <div className="glass-card">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label className="form-label" style={{ marginBottom: 0 }}>GitHub Personal Access Token (Opcjonalny)</label>
-                  <span className="badge badge-violet">Token PAT</span>
-                </div>
-                <input
-                  type="password"
-                  className="form-input"
-                  value={githubToken}
-                  onChange={(e) => setGithubToken(e.target.value)}
-                  placeholder="ghp_..."
-                />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  Wprowadź token GitHub tylko wtedy, gdy repozytorium paczki `Ciapongi-RP` jest prywatne i nie masz do niego publicznego dostępu.
-                </span>
-              </div>
-            </div>
-
-            {/* Ustawienia zaawansowane */}
-            <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                Ustawienia zaawansowane
-              </h3>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Katalog gry (.minecraft)</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={gameDir}
-                    onChange={(e) => setGameDir(e.target.value)}
-                    style={{ flexGrow: 1 }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={async () => {
-                      const selected = await window.api.selectDirectory();
-                      if (selected) setGameDir(selected);
-                    }}
-                    style={{ padding: '0 16px', gap: '6px', height: '46px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center' }}
-                    title="Wybierz folder z dysku"
-                  >
-                    <FolderOpen size={16} />
-                    <span>Wybierz</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Wersja Javy</label>
-                <select
-                  className="form-input"
-                  value={javaVersion}
-                  onChange={(e) => setJavaVersion(e.target.value)}
-                  style={{ width: '100%', height: '46px', background: 'rgba(25, 25, 35, 0.9)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', outline: 'none' }}
-                >
-                  <option value="auto">Automatyczna (zależna od wersji Minecrafta)</option>
-                  <option value="17">Java 17 (LTS — MC 1.17 – 1.20.4, w tym 1.20.1 ✓)</option>
-                  <option value="21">Java 21 (LTS — MC 1.20.5+, eksperymentalnie 1.20.1)</option>
-                </select>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  Java 17 jest oficjalnie wymaganą wersją dla Minecraft 1.20.1. Java 21 działa, lecz może powodować problemy z niektórymi modami. Przy zmianie wersja zostanie pobrana automatycznie.
-                </span>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Niestandardowa ścieżka do Javy ({isWin ? 'java.exe' : 'java'})</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={javaPath}
-                  onChange={(e) => setJavaPath(e.target.value)}
-                  placeholder="Pozostaw puste, aby używać wbudowanej Javy"
-                  style={{ height: '46px' }}
-                />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  Wypełnij tylko wtedy, gdy chcesz wskazać własny plik `{isWin ? 'java.exe' : 'java'}` zainstalowany ręcznie na komputerze.
-                </span>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Profil flag JVM (Java Garbage Collector)</label>
-                <select
-                  className="form-input"
-                  value={jvmProfile}
-                  onChange={(e) => setJvmProfile(e.target.value)}
-                  style={{ width: '100%', height: '46px', background: 'rgba(25, 25, 35, 0.9)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', outline: 'none' }}
-                >
-                  <option value="auto">Automatyczny (Rekomendowany dla Twojego sprzętu)</option>
-                  <option value="none">Brak (Domyślne parametry Javy)</option>
-                  <option value="ultra_potato">⚠️ Ultra Potato (Ekstremalnie słabe PC, ≤4GB RAM)</option>
-                  <option value="potato">Słaby PC (Potato GC - najniższe zużycie RAM)</option>
-                  <option value="optimized_g1gc">Zoptymalizowany G1GC (Aikar's - stabilniejsze klatki, zalecany)</option>
-                  <option value="extreme_zgc">Ekstremalny ZGC (Najniższe opóźnienia, dla mocnych PC i Javy 17/21)</option>
-                </select>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  Zoptymalizowane argumenty uruchamiania Javy pomagają wyeliminować mikroprzycięcia (stuttering) spowodowane odśmiecaniem pamięci.
-                </span>
-              </div>
-            </div>
-
           </div> {/* koniec prawej kolumny */}
 
-        </div>
-
-        {/* ═══════════════ MOTYWY GUI ═══════════════ */}
-        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
-              <Palette size={18} />
-            </div>
-            <div>
-              <h4 style={{ fontSize: '14px', fontWeight: '700', margin: 0 }}>Wygląd interfejsu (Motyw)</h4>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Zmiana jest natychmiastowa — nie trzeba zapisywać.</p>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
-            {Object.entries(THEMES).map(([id, t]) => {
-              const isActive = theme === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => {
-                    setTheme(id);
-                    // Natychmiastowy podgląd bez zapisywania
-                    const root = document.documentElement;
-                    Object.entries(t.vars).forEach(([k, v]) => root.style.setProperty(k, v));
-                    document.body.style.background = t.vars['--color-bg'];
-                  }}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
-                    padding: '12px 8px', borderRadius: '12px', cursor: 'pointer',
-                    border: isActive ? '2px solid var(--color-primary)' : '2px solid rgba(255,255,255,0.06)',
-                    background: isActive ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {/* Podgląd kolorów */}
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: t.preview[0] }} />
-                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: t.preview[1] }} />
-                  </div>
-                  <span style={{ fontSize: '11px', fontWeight: '600', color: isActive ? 'var(--color-primary)' : 'var(--text-muted)', textAlign: 'center', lineHeight: '1.2' }}>
-                    {t.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* Przycisk zapisu — poza kolumnami, na dole */}
