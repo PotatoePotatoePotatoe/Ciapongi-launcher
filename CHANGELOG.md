@@ -2,6 +2,10 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+
+## [1.0.4] i [1.0.5]
+Naprawiono logowanie do konta microsoft 
+
 ## [1.0.3]
 ### Dodano (Added)
 - **Logika aktualizacji (electron-updater):** Właściwa implementacja sprawdzania, pobierania i instalowania aktualizacji launchera za pośrednictwem GitHub Releases w backendzie aplikacji (obsługa `main-win.js` i `main-linux.js`).
