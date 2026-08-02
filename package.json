@@ -33,7 +33,7 @@
     "vite": "^5.1.6"
   },
   "build": {
-    "publish": null,
+    "publish": ["github"],
     "appId": "com.ciapongirp.launcher",
     "productName": "CiapongiRPLauncher",
     "directories": {
