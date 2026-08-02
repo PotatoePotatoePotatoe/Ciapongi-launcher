@@ -1,0 +1,26 @@
+﻿# Zaleznosci Node
+node_modules/
+
+# Pliki budowania (binaria, nie kod)
+dist/
+dist-app/
+Release/
+
+# Logi i config lokalny
+launcher-latest.log
+launcher-config-local.json
+
+# Pliki systemowe
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Tymczasowe
+*.tmp
+*.exe
+*.zip
+*.tar.gz
+*.ico

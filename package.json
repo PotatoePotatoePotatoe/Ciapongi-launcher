@@ -1,0 +1,85 @@
+{
+  "name": "ciapongi-rp-launcher",
+  "version": "1.0.0",
+  "description": "Dedykowany launcher Minecraft dla Ciapongi-RP",
+  "author": "Ciapongi-RP",
+  "main": "src/main/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev:renderer": "vite",
+    "dev:electron": "electron .",
+    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:electron\"",
+    "build:renderer": "vite build",
+    "dist": "npm run build:renderer && electron-builder --win",
+    "dist:win32": "npm run build:renderer && electron-builder --win --ia32",
+    "dist:linux": "npm run build:renderer && electron-builder --linux"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.10",
+    "axios": "^1.6.8",
+    "lucide-react": "^0.368.0",
+    "minecraft-launcher-core": "^3.2.2",
+    "pngjs": "^7.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^29.1.5",
+    "electron-builder": "^24.13.3",
+    "vite": "^5.1.6"
+  },
+  "build": {
+    "publish": null,
+    "appId": "com.ciapongirp.launcher",
+    "productName": "CiapongiRPLauncher",
+    "directories": {
+      "output": "dist-app"
+    },
+    "files": [
+      "dist/**/*",
+      "src/main/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "tar.gz"
+      ],
+      "icon": "icon.png",
+      "category": "Game"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Ciapongi RP Launcher",
+      "artifactName": "${productName} Setup ${version} ${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName} ${version} ${arch}.${ext}"
+    }
+  }
+}
