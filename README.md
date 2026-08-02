@@ -1,4 +1,3 @@
-div align="center">
   <h1>🚄 CiapongiRP Launcher</h1>
   
   **Oficjalny launcher dla społeczności CiapongiRP**  
@@ -50,6 +49,8 @@ Projekt został zbudowany przez entuzjastów dla graczy.
 - **Moduł MC:** `minecraft-launcher-core` oraz komunikacja IPC.
 
 ## 🙋‍♂️ Twórcy
+Serwer: Szablix "https://github.com/KrolestwoSZABLIXa"
+Aplikacja: PotatoePotatoePotatoe "https://github.com/PotatoePotatoePotatoe"
 
 Stworzone ze ❤️ dla serwera **CiapongiRP**.
 
