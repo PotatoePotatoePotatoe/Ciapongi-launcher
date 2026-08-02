@@ -39,7 +39,7 @@ Aby zacząć grać na serwerze CiapongiRP:
 
 ## 🛠️ Stack Technologiczny
 
-Projekt został zbudowany przez entuzjastów dla graczy.
+Projekt został zbudowany przez entuzjastę dla graczy.
 - **Frontend:** React, Vanilla CSS, Lucide React (ikony).
 - **Backend:** Node.js, Electron.
 - **Wydania:** Automatyzacja przy pomocy `electron-builder` i `electron-updater`.
