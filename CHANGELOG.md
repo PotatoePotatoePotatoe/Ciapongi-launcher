@@ -2,7 +2,7 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
-## [1.0.1] - Dzisiaj
+## [1.0.1] 
 ### Dodano (Added)
 - **System Automatycznych Aktualizacji:** Pełna integracja z biblioteką `electron-updater` oraz GitHub Releases. Launcher potrafi teraz samodzielnie sprawdzać, pobierać i instalować nowsze wersje (zarówno na Windows jak i Linux).
 - **Auto-pobieranie w tle:** Nowa, domyślnie włączona funkcja ukrywająca cały proces pobierania w tle. Gracz jest informowany jedynie w momencie, w którym aktualizacja jest już gotowa do podmiany po ponownym uruchomieniu launchera.
