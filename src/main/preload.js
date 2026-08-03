@@ -56,6 +56,15 @@ contextBridge.exposeInMainWorld('api', {
   launchGame: () => ipcRenderer.invoke('launch-game'),
   killGame: () => ipcRenderer.invoke('kill-game'),
   
+  // Launcher Updater
+  checkForLauncherUpdates: () => ipcRenderer.invoke('check-for-launcher-updates'),
+  installLauncherUpdate: () => ipcRenderer.invoke('install-launcher-update'),
+  onLauncherUpdateEvent: (callback) => {
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on('launcher-update-event', listener);
+    return () => ipcRenderer.removeListener('launcher-update-event', listener);
+  },
+
   // Event Listeners for Progress & Logs
   onPackSyncProgress: (callback) => {
     const listener = (event, data) => callback(data);

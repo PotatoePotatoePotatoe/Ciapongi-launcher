@@ -56,6 +56,7 @@ function App() {
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [showAddOfflineModal, setShowAddOfflineModal] = useState(false);
+  const [launcherUpdateStatus, setLauncherUpdateStatus] = useState('idle'); // idle | available | downloaded
 
   // Aplikowanie motywu przy zmianie config.theme
   useEffect(() => {
@@ -82,6 +83,20 @@ function App() {
     });
 
     return () => { unsubStatus(); unsubPackSync(); unsubLaunch(); unsubLog(); };
+  }, []);
+
+  // Globalny listener aktualizacji launchera — badge w sidebarze
+  useEffect(() => {
+    if (window.api && window.api.onLauncherUpdateEvent) {
+      const cleanup = window.api.onLauncherUpdateEvent((data) => {
+        if (data.status === 'available' || data.status === 'downloaded') {
+          setLauncherUpdateStatus(data.status);
+        } else if (data.status === 'not-available') {
+          setLauncherUpdateStatus('idle');
+        }
+      });
+      return cleanup;
+    }
   }, []);
 
   // === OPTYMALIZACJA: useCallback zapobiega tworzeniu nowych funkcji przy każdym re-renderze ===
@@ -248,8 +263,22 @@ function App() {
             <button className={`sidebar-btn ${activeTab === 'screenshots' ? 'active' : ''}`} onClick={() => setActiveTab('screenshots')}>
               <Camera size={18} />Zrzuty Ekranu
             </button>
-            <button className={`sidebar-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+            <button className={`sidebar-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} style={{ position: 'relative' }}>
               <SettingsIcon size={18} />Ustawienia
+              {(launcherUpdateStatus === 'available' || launcherUpdateStatus === 'downloaded') && (
+                <span style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '10px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: launcherUpdateStatus === 'downloaded' ? '#22c55e' : '#38bdf8',
+                  boxShadow: launcherUpdateStatus === 'downloaded' ? '0 0 6px #22c55e' : '0 0 6px #38bdf8',
+                  animation: 'pulse-badge 2s infinite',
+                  display: 'inline-block',
+                }} title={launcherUpdateStatus === 'downloaded' ? 'Gotowe do instalacji!' : 'Dostępna aktualizacja launchera'} />
+              )}
             </button>
           </div>
 

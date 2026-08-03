@@ -6,14 +6,13 @@ const axios = require('axios');
 const AdmZip = require('adm-zip');
 const { Client } = require('minecraft-launcher-core');
 const { pathToFileURL } = require('url');
+const githubUpdater = require('./github-updater');
+const { Auth } = require('msmc');
 
 // Główna konfiguracja i okno
 let mainWindow = null;
 let minecraftProcess = null;
 
-// Ustalamy katalog bazowy aplikacji:
-// Dla wersji Portable (spakowanej przez electron-builder) używamy zmiennej PORTABLE_EXECUTABLE_DIR,
-// w przeciwnym razie folder AppData, a w trybie deweloperskim root projektu.
 const appBaseDir = process.env.PORTABLE_EXECUTABLE_DIR
   ? process.env.PORTABLE_EXECUTABLE_DIR
   : (app.isPackaged ? app.getPath('userData') : app.getAppPath());
@@ -22,7 +21,6 @@ const configPath = path.join(appBaseDir, 'launcher-config-local.json');
 const defaultGameDir = path.join(appBaseDir, 'minecraft-instance');
 const logPath = path.join(appBaseDir, 'launcher-latest.log');
 
-// Pomocnicza funkcja zapisująca logi do pliku
 function logToFile(message) {
   try {
     fs.appendFileSync(logPath, message + '\n', 'utf8');
@@ -31,13 +29,12 @@ function logToFile(message) {
   }
 }
 
-// Domyślna konfiguracja launchera
 const DEFAULT_CONFIG = {
   minecraftVersion: "1.20.1",
   loader: "fabric",
   loaderVersion: "0.19.3",
-  ram: 4096, // w MB
-  nickname: "", // Pusty na pierwsze uruchomienie w celu wyzwolenia wyboru konta
+  ram: 4096,
+  nickname: "",
   gameDir: defaultGameDir,
   githubToken: "",
   javaPath: "",
@@ -48,13 +45,12 @@ const DEFAULT_CONFIG = {
   microsoftAuth: null,
   packVersion: "",
   disableAutoUpdate: false,
+  autoUpdateLauncher: true,
   theme: "dark-violet",
-  // System wielu kont
   accounts: [],
   activeAccountIndex: 0
 };
 
-// Funkcja pomocnicza wczytująca konfigurację
 function readConfig() {
   try {
     if (fs.existsSync(configPath)) {
@@ -62,7 +58,6 @@ function readConfig() {
       const saved = JSON.parse(data);
       const merged = { ...DEFAULT_CONFIG, ...saved };
 
-      // === MIGRACJA: Jeśli brak tablicy accounts[], utwórz z istniejącego konta ===
       if (!merged.accounts || merged.accounts.length === 0) {
         if (merged.nickname && merged.nickname !== '') {
           merged.accounts = [{
@@ -79,24 +74,23 @@ function readConfig() {
       }
       return merged;
     } else {
-      // Pierwsze uruchomienie - automatycznie dopasuj RAM pod kątem cięższych paczek modów
       const totalMb = Math.floor(os.totalmem() / (1024 * 1024));
       let defaultRam = 4096;
       let defaultProfile = 'optimized_g1gc';
       if (totalMb <= 4500) {
-        defaultRam = 2048; // System 4GB -> przeznaczamy 2GB (minimum)
+        defaultRam = 2048;
         defaultProfile = 'ultra_potato';
       } else if (totalMb <= 8500) {
-        defaultRam = 4096; // System 8GB -> dajemy 4GB
+        defaultRam = 4096;
         defaultProfile = 'potato';
       } else if (totalMb <= 12500) {
-        defaultRam = 6144; // System 12GB -> dajemy 6GB
+        defaultRam = 6144;
         defaultProfile = 'optimized_g1gc';
       } else if (totalMb <= 16500) {
-        defaultRam = 8192; // System 16GB -> dajemy 8GB
+        defaultRam = 8192;
         defaultProfile = 'optimized_g1gc';
       } else {
-        defaultRam = 10240; // System > 16GB -> dajemy 10GB
+        defaultRam = 10240;
         defaultProfile = 'extreme_zgc';
       }
       return { ...DEFAULT_CONFIG, ram: defaultRam, jvmProfile: defaultProfile };
@@ -107,7 +101,6 @@ function readConfig() {
   return { ...DEFAULT_CONFIG };
 }
 
-// Funkcja pomocnicza zapisująca konfigurację
 function writeConfig(config) {
   try {
     const dir = path.dirname(configPath);
@@ -120,13 +113,12 @@ function writeConfig(config) {
   }
 }
 
-// Funkcja wyszukująca plik wykonywalny Javy recursively w podanym folderze
 function findJavaExecutable(dir) {
   if (!fs.existsSync(dir)) return null;
   const items = fs.readdirSync(dir);
   const isWin = process.platform === 'win32';
   const matchName = isWin ? 'java.exe' : 'java';
-  
+
   for (const item of items) {
     const fullPath = path.join(dir, item);
     const stat = fs.statSync(fullPath);
@@ -140,7 +132,6 @@ function findJavaExecutable(dir) {
   return null;
 }
 
-// Funkcja pomocnicza do pobierania pliku z raportowaniem postępu
 async function downloadFile(url, destPath, onProgress, headers = {}) {
   const writer = fs.createWriteStream(destPath);
   const response = await axios({
@@ -152,22 +143,19 @@ async function downloadFile(url, destPath, onProgress, headers = {}) {
 
   const totalLength = parseInt(response.headers['content-length'] || '0', 10);
   let downloadedLength = 0;
-
   const startTime = Date.now();
   let lastTime = startTime;
   let lastDownloaded = 0;
-  let currentSpeed = 0; // w bajtach na sekundę
+  let currentSpeed = 0;
 
   response.data.on('data', (chunk) => {
     downloadedLength += chunk.length;
     const now = Date.now();
 
-    // Obliczamy prędkość co 500 ms, aby uniknąć częstych skoków
     if (now - lastTime >= 500) {
-      const timeElapsed = (now - lastTime) / 1000; // w sekundach
+      const timeElapsed = (now - lastTime) / 1000;
       const bytesSinceLast = downloadedLength - lastDownloaded;
       currentSpeed = bytesSinceLast / timeElapsed;
-
       lastTime = now;
       lastDownloaded = downloadedLength;
     }
@@ -191,7 +179,6 @@ async function downloadFile(url, destPath, onProgress, headers = {}) {
   });
 }
 
-// Rekurencyjne kopiowanie folderu z pominięciem plików użytkownika i zbieraniem relatywnych ścieżek
 function copyDirRecursive(src, dest, relativeList = [], baseDest = dest) {
   if (!fs.existsSync(dest)) {
     fs.mkdirSync(dest, { recursive: true });
@@ -201,7 +188,6 @@ function copyDirRecursive(src, dest, relativeList = [], baseDest = dest) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
-      // Ignorujemy foldery specyficzne dla użytkownika, aby ich nie nadpisać ani nie zduplikować
       if (['saves', 'screenshots', 'logs'].includes(entry.name.toLowerCase())) {
         continue;
       }
@@ -215,7 +201,6 @@ function copyDirRecursive(src, dest, relativeList = [], baseDest = dest) {
   return relativeList;
 }
 
-// Rekurencyjne szukanie katalogu głównego paczki (szukamy mods, config lub launcher-config.json)
 function findPackRoot(dir) {
   const items = fs.readdirSync(dir);
   if (items.includes('mods') || items.includes('config') || items.includes('launcher-config.json')) {
@@ -231,7 +216,6 @@ function findPackRoot(dir) {
   return null;
 }
 
-// Bezpieczne sprawdzanie czy paczka główna jest fizycznie zainstalowana i kompletna na dysku
 function isPackFullyInstalled(gameDir) {
   const manifestPath = path.join(gameDir, 'pack-manifest.json');
   const modsDir = path.join(gameDir, 'mods');
@@ -246,15 +230,12 @@ function isPackFullyInstalled(gameDir) {
       return false;
     }
 
-    // Upewniamy się, że wszystkie pliki z manifestu fizycznie istnieją
     const manifestFilesExist = manifestFiles.every(file => fs.existsSync(path.join(gameDir, file)));
     if (!manifestFilesExist) {
       return false;
     }
 
-    // Upewniamy się, że w folderze mods znajdują się kluczowe mody paczki głównej (Fabric API, Sodium, MTR)
     const modFiles = fs.readdirSync(modsDir).map(f => f.toLowerCase());
-    
     const hasFabricApi = modFiles.some(f => f.includes('fabric-api') || f.includes('fabric_api'));
     const hasSodium = modFiles.some(f => f.includes('sodium'));
     const hasMtr = modFiles.some(f => f.includes('mtr') || f.includes('minecraft-transit-railway'));
@@ -269,7 +250,44 @@ function isPackFullyInstalled(gameDir) {
   }
 }
 
-// Tworzenie okna aplikacji
+function sendUpdateEvent(data) {
+  if (mainWindow) mainWindow.webContents.send('launcher-update-event', data);
+}
+
+function setupLauncherUpdater() {
+  if (!app.isPackaged) {
+    logToFile('[GithubUpdater] Dev mode — updater disabled.');
+    return;
+  }
+  const config = readConfig();
+  const autoDownload = config.autoUpdateLauncher !== false;
+  // Sprawdz aktualizacje przy starcie aplikacji
+  githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, logToFile)
+    .catch(err => logToFile('[GithubUpdater] Init check error: ' + err));
+}
+
+ipcMain.handle('check-for-launcher-updates', async () => {
+  try {
+    const config = readConfig();
+    const autoDownload = config.autoUpdateLauncher !== false;
+    await githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, logToFile);
+    return { success: true };
+  } catch (err) {
+    logToFile('[GithubUpdater] Manual check error: ' + err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('install-launcher-update', () => {
+  try {
+    githubUpdater.installUpdate(null, logToFile);
+    return { success: true };
+  } catch (err) {
+    logToFile('[GithubUpdater] Install error: ' + err);
+    return { success: false, error: err.message };
+  }
+});
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1050,
@@ -277,8 +295,8 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: "Ciapongi-RP Launcher",
-    frame: false, // Tworzymy ładny customowy pasek tytułowy w React
-    transparent: true, // Dla efektu glassmorphism
+    frame: false,
+    transparent: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -286,10 +304,8 @@ function createWindow() {
     }
   });
 
-  // W trybie deweloperskim ładujemy z serwera Vite, w produkcyjnym z dist/index.html
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
     mainWindow.loadURL('http://localhost:5173').catch(() => {
-      // Spróbuj ponownie za 1s jeśli serwer Vite się jeszcze nie włączył
       setTimeout(() => {
         mainWindow.loadURL('http://localhost:5173');
       }, 1000);
@@ -305,7 +321,6 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 app.whenReady().then(() => {
-  // Protokół do bezpiecznego ładowania lokalnych plików (np. zrzutów ekranu)
   protocol.handle('mc-file', (request) => {
     try {
       const urlPath = request.url.slice('mc-file://'.length);
@@ -313,8 +328,7 @@ app.whenReady().then(() => {
       const config = readConfig();
       const gameDir = config.gameDir;
       const resolvedPath = path.resolve(gameDir, decodedPath);
-      
-      // Bezpieczeństwo: Plik musi znajdować się wewnątrz katalogu gry
+
       if (resolvedPath.startsWith(gameDir)) {
         return net.fetch(pathToFileURL(resolvedPath).toString());
       }
@@ -325,6 +339,7 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+  setupLauncherUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -335,7 +350,6 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// IPC - Obsługa zrzutów ekranu (screenshots)
 ipcMain.handle('get-screenshots', async () => {
   const config = readConfig();
   const gameDir = config.gameDir;
@@ -358,7 +372,6 @@ ipcMain.handle('get-screenshots', async () => {
         });
       }
     }
-    // Sortuj od najnowszych
     return screenshots.sort((a, b) => b.created - a.created);
   } catch (err) {
     console.error("Błąd pobierania zrzutów ekranu:", err);
@@ -382,7 +395,6 @@ ipcMain.handle('delete-screenshot', async (event, filename) => {
   }
 });
 
-// IPC - Zarządzanie konfiguracją i systemem
 ipcMain.handle('get-config', () => {
   return readConfig();
 });
@@ -403,7 +415,7 @@ ipcMain.handle('save-config', (event, config) => {
 
 ipcMain.handle('get-system-ram', () => {
   const totalBytes = os.totalmem();
-  return Math.floor(totalBytes / (1024 * 1024)); // Zwraca RAM w MB
+  return Math.floor(totalBytes / (1024 * 1024));
 });
 
 ipcMain.handle('get-system-specs', () => {
@@ -414,7 +426,6 @@ ipcMain.handle('get-system-specs', () => {
     const totalBytes = os.totalmem();
     const totalRamMb = Math.floor(totalBytes / (1024 * 1024));
 
-    // Pobranie karty graficznej w zależności od systemu
     let gpuName = 'Nieznana karta graficzna';
     try {
       const { execSync } = require('child_process');
@@ -505,202 +516,48 @@ ipcMain.handle('open-folder', async (event, subfolder) => {
 });
 
 ipcMain.handle('login-microsoft', async () => {
-  return new Promise((resolve) => {
-    const { BrowserWindow } = require('electron');
-    const authWindow = new BrowserWindow({
-      width: 520,
-      height: 640,
-      title: 'Logowanie Microsoft',
-      parent: mainWindow,
-      modal: true,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true
-      }
-    });
+  try {
+    const authManager = new Auth("select_account");
+    const xboxManager = await authManager.launch("electron");
+    const token = await xboxManager.getMinecraft();
 
-    // Czyścimy magazyn ciasteczek/sesji przed logowaniem w celu zapewnienia czystej sesji
-    authWindow.webContents.session.clearStorageData();
+    if (!token || !token.mclc()) {
+      return { success: false, error: 'Nie udało się pobrać profilu Minecraft.' };
+    }
 
-    const params = new URLSearchParams({
-      client_id: '00000000402b5328',
-      response_type: 'code',
-      scope: 'service::user.auth.xboxlive.com::MBI_SSL',
-      redirect_uri: 'https://login.live.com/oauth20_desktop.srf'
-    });
-    const authUrl = `https://login.live.com/oauth20_authorize.srf?${params.toString()}`;
-    authWindow.loadURL(authUrl);
+    const profile = token.mclc();
 
-    let code = null;
-    let loginError = null;
-
-    const handleRedirect = (url) => {
-      logToFile(`[SYSTEM] Logowanie MS: Przekierowanie na URL: ${url}`);
-      if (url.startsWith('https://login.live.com/oauth20_desktop.srf')) {
-        const urlObj = new URL(url);
-        if (urlObj.searchParams.has('error')) {
-          loginError = urlObj.searchParams.get('error_description') || urlObj.searchParams.get('error') || 'Nieznany błąd Microsoft OAuth';
-          logToFile(`[SYSTEM] Logowanie MS wykryło błąd: ${loginError}`);
-        } else {
-          code = urlObj.searchParams.get('code');
-        }
-        authWindow.close();
-      }
+    const newAuth = {
+      uuid: profile.uuid,
+      name: profile.name,
+      access_token: profile.access_token,
+      profile: profile
     };
 
-    authWindow.webContents.on('will-redirect', (event, url) => {
-      handleRedirect(url);
-    });
+    const config = readConfig();
+    config.loginType = 'microsoft';
+    config.nickname = profile.name;
+    config.microsoftAuth = newAuth;
 
-    authWindow.webContents.on('did-navigate', (event, url) => {
-      handleRedirect(url);
-    });
+    if (!config.accounts) config.accounts = [];
+    const existingIdx = config.accounts.findIndex(a => a.id === profile.uuid);
+    const newAccount = { id: profile.uuid, type: 'microsoft', nickname: profile.name, microsoftAuth: newAuth };
 
-    authWindow.on('closed', async () => {
-      if (loginError) {
-        resolve({ success: false, error: `Błąd logowania Microsoft: ${loginError}` });
-        return;
-      }
-      if (!code) {
-        resolve({ success: false, error: 'Anulowano logowanie.' });
-        return;
-      }
+    if (existingIdx >= 0) {
+      config.accounts[existingIdx] = newAccount;
+      config.activeAccountIndex = existingIdx;
+    } else {
+      config.accounts.push(newAccount);
+      config.activeAccountIndex = config.accounts.length - 1;
+    }
 
-      try {
-        mainWindow.webContents.send('status-message', 'Logowanie: Pobieranie tokenu Microsoft...');
+    writeConfig(config);
 
-        // 1. MS Token
-        const msTokenRes = await axios.post('https://login.live.com/oauth20_token.srf',
-          new URLSearchParams({
-            client_id: '00000000402b5328',
-            code: code,
-            grant_type: 'authorization_code',
-            redirect_uri: 'https://login.live.com/oauth20_desktop.srf'
-          }).toString(),
-          { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-        );
-
-        const msAccessToken = msTokenRes.data.access_token;
-        const msRefreshToken = msTokenRes.data.refresh_token;
-
-        logToFile(`[SYSTEM] Z oauth20_token.srf odebrano tokeny. Klucze w response: ${Object.keys(msTokenRes.data || {}).join(', ')}`);
-        logToFile(`[SYSTEM] msAccessToken długość: ${msAccessToken ? msAccessToken.length : 0}, początek: ${msAccessToken ? msAccessToken.substring(0, 15) : 'brak'}`);
-
-        mainWindow.webContents.send('status-message', 'Logowanie: Uwierzytelnianie Xbox Live...');
-
-        // 2. Xbox Live Auth
-        const xboxAuthRes = await axios.post('https://user.auth.xboxlive.com/user/authenticate', {
-          Properties: {
-            AuthMethod: 'RPS',
-            SiteName: 'user.auth.xboxlive.com',
-            RpsTicket: msAccessToken.startsWith('d=') ? msAccessToken : `d=${msAccessToken}`
-          },
-          RelyingParty: 'http://auth.xboxlive.com',
-          TokenType: 'JWT'
-        }, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        });
-
-        const xboxToken = xboxAuthRes.data.Token;
-        const uhs = xboxAuthRes.data.DisplayClaims.xui[0].uhs;
-
-        mainWindow.webContents.send('status-message', 'Logowanie: Pobieranie tokenu XSTS...');
-
-        // 3. XSTS Auth
-        const xstsRes = await axios.post('https://xsts.auth.xboxlive.com/xsts/authorize', {
-          Properties: {
-            SandboxId: 'RETAIL',
-            UserTokens: [xboxToken]
-          },
-          RelyingParty: 'rp://api.minecraftservices.com/',
-          TokenType: 'JWT'
-        }, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        });
-
-        const xstsToken = xstsRes.data.Token;
-
-        mainWindow.webContents.send('status-message', 'Logowanie: Uwierzytelnianie w Minecraft...');
-
-        // 4. Minecraft Login
-        const mcLoginRes = await axios.post('https://api.minecraftservices.com/authentication/login_with_xbox', {
-          identityToken: `XBL3.0 x=${uhs};${xstsToken}`
-        }, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
-        });
-
-        const mcAccessToken = mcLoginRes.data.access_token;
-
-        mainWindow.webContents.send('status-message', 'Logowanie: Pobieranie profilu gracza...');
-
-        // 5. Minecraft Profile
-        const profileRes = await axios.get('https://api.minecraftservices.com/minecraft/profile', {
-          headers: {
-            Authorization: `Bearer ${mcAccessToken}`,
-            'Accept': 'application/json'
-          }
-        });
-
-        const profile = profileRes.data;
-        if (!profile.id || !profile.name) {
-          resolve({ success: false, error: 'Konto Microsoft nie posiada zakupionej gry Minecraft.' });
-          return;
-        }
-
-        // Zapis w configu (root + accounts[])
-        const config = readConfig();
-        const newAuth = {
-          uuid: profile.id,
-          name: profile.name,
-          access_token: mcAccessToken,
-          refresh_token: msRefreshToken,
-          expiresAt: Date.now() + (mcLoginRes.data.expires_in * 1000)
-        };
-        config.loginType = 'microsoft';
-        config.nickname = profile.name;
-        config.microsoftAuth = newAuth;
-
-        // Aktualizacja/dodanie konta w tablicy accounts[]
-        if (!config.accounts) config.accounts = [];
-        const existingIdx = config.accounts.findIndex(a => a.id === profile.id);
-        const newAccount = { id: profile.id, type: 'microsoft', nickname: profile.name, microsoftAuth: newAuth };
-        if (existingIdx >= 0) {
-          config.accounts[existingIdx] = newAccount;
-          config.activeAccountIndex = existingIdx;
-        } else {
-          config.accounts.push(newAccount);
-          config.activeAccountIndex = config.accounts.length - 1;
-        }
-        writeConfig(config);
-
-        mainWindow.webContents.send('status-message', `Zalogowano pomyślnie jako ${profile.name}!`);
-        resolve({ success: true, profile: { name: profile.name, uuid: profile.id } });
-      } catch (err) {
-        const errorUrl = err.response?.config?.url || 'nieznany URL';
-        const errorStatus = err.response?.status || 'nieznany status';
-        const errorData = err.response?.data;
-        const errorHeaders = err.response?.headers;
-        const errorDetail = errorData ? (typeof errorData === 'object' ? JSON.stringify(errorData) : errorData) : err.message;
-        logToFile(`[ERROR] Błąd logowania Microsoft na URL: ${errorUrl} (Status: ${errorStatus}). Szczegóły: ${errorDetail}, Headers: ${JSON.stringify(errorHeaders || {})}`);
-        console.error("Błąd logowania Microsoft:", errorDetail);
-
-        let displayError = err.message;
-        if (errorData) {
-          displayError = errorData.error_description || errorData.errorMessage || errorData.Message || errorData.error || JSON.stringify(errorData);
-        }
-        resolve({ success: false, error: `Błąd logowania (${errorUrl}) [Status ${errorStatus}]: ${displayError}` });
-      }
-    });
-  });
+    return { success: true, profile: { name: profile.name, uuid: profile.uuid } };
+  } catch (err) {
+    logToFile(`[ERROR] Błąd logowania Microsoft (msmc): ${err.message}`);
+    return { success: false, error: err.message || 'Anulowano lub wystąpił błąd logowania.' };
+  }
 });
 
 ipcMain.handle('select-directory', async () => {
@@ -715,7 +572,6 @@ ipcMain.handle('select-directory', async () => {
   return result.filePaths[0];
 });
 
-// Window controls IPC
 ipcMain.on('window-minimize', () => {
   if (mainWindow) mainWindow.minimize();
 });
@@ -732,7 +588,6 @@ ipcMain.on('window-close', () => {
   if (mainWindow) mainWindow.close();
 });
 
-// IPC - Auto-dodawanie serwera Ciapongi-RP do servers.dat Minecrafta
 ipcMain.handle('add-server-to-minecraft', async () => {
   try {
     const config = readConfig();
@@ -745,8 +600,6 @@ ipcMain.handle('add-server-to-minecraft', async () => {
     const SERVER_NAME = 'Ciapongi-RP';
     const SERVER_IP = 'ciapongi.szablix.pl';
 
-    // Budujemy plik NBT ręcznie (binarny format NBT compound)
-    // Format: TAG_Compound(root) > TAG_List('servers') > [ TAG_Compound{name, ip, hideAddress=0} ]
     function writeNBTString(str) {
       const buf = Buffer.from(str, 'utf8');
       const lenBuf = Buffer.alloc(2);
@@ -754,48 +607,40 @@ ipcMain.handle('add-server-to-minecraft', async () => {
       return Buffer.concat([lenBuf, buf]);
     }
     function writeNBTCompound(entries) {
-      // entries: array of { tagType, name, value (Buffer) }
       const chunks = [];
       for (const entry of entries) {
-        chunks.push(Buffer.from([entry.tagType]));        // tag type
-        chunks.push(writeNBTString(entry.name));           // tag name
-        chunks.push(entry.value);                          // tag value
+        chunks.push(Buffer.from([entry.tagType]));
+        chunks.push(writeNBTString(entry.name));
+        chunks.push(entry.value);
       }
-      chunks.push(Buffer.from([0])); // TAG_End
+      chunks.push(Buffer.from([0]));
       return Buffer.concat(chunks);
     }
 
-    // TAG_Byte: type=1, value=1 byte
     function nbtByte(val) { const b = Buffer.alloc(1); b.writeUInt8(val, 0); return b; }
-    // TAG_String: type=8
     function nbtString(str) { return writeNBTString(str); }
 
-    // Kompound serwera: { name, ip, hideAddress }
     const serverCompound = writeNBTCompound([
       { tagType: 8, name: 'name', value: nbtString(SERVER_NAME) },
-      { tagType: 8, name: 'ip',   value: nbtString(SERVER_IP) },
+      { tagType: 8, name: 'ip', value: nbtString(SERVER_IP) },
       { tagType: 1, name: 'hideAddress', value: nbtByte(0) }
     ]);
 
-    // Lista serwerów: TAG_List of TAG_Compound
     const listPayload = Buffer.alloc(5);
-    listPayload.writeUInt8(10, 0);      // element type: TAG_Compound
-    listPayload.writeInt32BE(1, 1);     // count: 1
+    listPayload.writeUInt8(10, 0);
+    listPayload.writeInt32BE(1, 1);
     const serversList = Buffer.concat([listPayload, serverCompound]);
 
-    // Root TAG_Compound
     const rootCompound = writeNBTCompound([
       { tagType: 9, name: 'servers', value: serversList }
     ]);
 
-    // Nagłówek pliku NBT: TAG_Compound (type=10), name ""
     const header = Buffer.concat([
-      Buffer.from([10]),         // TAG_Compound
-      Buffer.from([0, 0]),       // name length = 0 (pusty string)
+      Buffer.from([10]),
+      Buffer.from([0, 0]),
       rootCompound
     ]);
 
-    // Sprawdź czy serwer już jest w pliku (prosta heurystyka — szukamy IP w istniejącym pliku)
     if (fs.existsSync(serversDatPath)) {
       const existing = fs.readFileSync(serversDatPath);
       if (existing.includes(SERVER_IP)) {
@@ -813,14 +658,12 @@ ipcMain.handle('add-server-to-minecraft', async () => {
   }
 });
 
-// IPC - Dodanie nowego konta offline do tablicy accounts[]
 ipcMain.handle('add-account', async (event, { type, nickname, microsoftAuth }) => {
   const config = readConfig();
   if (!config.accounts) config.accounts = [];
 
   const id = type === 'microsoft' && microsoftAuth ? microsoftAuth.uuid : `offline-${nickname}`;
 
-  // Sprawdź czy konto już istnieje
   const existingIdx = config.accounts.findIndex(a => a.id === id);
   const newAccount = { id, type, nickname, microsoftAuth: microsoftAuth || null };
 
@@ -832,7 +675,6 @@ ipcMain.handle('add-account', async (event, { type, nickname, microsoftAuth }) =
     config.activeAccountIndex = config.accounts.length - 1;
   }
 
-  // Aktualizacja root pól dla kompatybilności z logiką uruchamiania gry
   config.nickname = newAccount.nickname;
   config.loginType = newAccount.type;
   config.microsoftAuth = newAccount.microsoftAuth;
@@ -841,7 +683,6 @@ ipcMain.handle('add-account', async (event, { type, nickname, microsoftAuth }) =
   return { success: true, config };
 });
 
-// IPC - Przełączenie aktywnego konta
 ipcMain.handle('switch-account', async (event, { index }) => {
   const config = readConfig();
   if (!config.accounts || index < 0 || index >= config.accounts.length) {
@@ -849,7 +690,6 @@ ipcMain.handle('switch-account', async (event, { index }) => {
   }
   config.activeAccountIndex = index;
   const acc = config.accounts[index];
-  // Aktualizacja root pól
   config.nickname = acc.nickname;
   config.loginType = acc.type;
   config.microsoftAuth = acc.microsoftAuth || null;
@@ -857,15 +697,14 @@ ipcMain.handle('switch-account', async (event, { index }) => {
   return { success: true, config };
 });
 
-// IPC - Usunięcie konta
 ipcMain.handle('remove-account', async (event, { index }) => {
   const config = readConfig();
   if (!config.accounts || index < 0 || index >= config.accounts.length) {
     return { success: false, error: 'Nieprawidłowy indeks konta.' };
   }
-  
+
   config.accounts.splice(index, 1);
-  
+
   if (config.accounts.length === 0) {
     config.activeAccountIndex = 0;
     config.nickname = 'Gracz';
@@ -882,12 +721,11 @@ ipcMain.handle('remove-account', async (event, { index }) => {
     config.loginType = acc.type;
     config.microsoftAuth = acc.microsoftAuth || null;
   }
-  
+
   writeConfig(config);
   return { success: true, config };
 });
 
-// IPC - Pobieranie dostępnych wersji paczki
 ipcMain.handle('get-pack-versions', async (event) => {
   const config = readConfig();
   const headers = { 'User-Agent': 'Ciapongi-RP-Launcher' };
@@ -909,7 +747,6 @@ ipcMain.handle('get-pack-versions', async (event) => {
   }
 });
 
-// IPC - Pobieranie i synchronizacja paczki z GitHub Releases
 ipcMain.handle('sync-pack', async (event, force = false) => {
   const config = readConfig();
 
@@ -933,7 +770,6 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
   try {
     mainWindow.webContents.send('status-message', 'Sprawdzanie wersji paczki na GitHub...');
 
-    // Tworzenie katalogów
     if (!fs.existsSync(gameDir)) fs.mkdirSync(gameDir, { recursive: true });
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
@@ -942,7 +778,6 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       headers['Authorization'] = `token ${config.githubToken}`;
     }
 
-    // Pobranie informacji o najnowszym release (również pre-release)
     const apiURL = 'https://api.github.com/repos/KrolestwoSZABLIXa/Ciapongi-RP/releases';
     let releaseInfo;
     try {
@@ -950,7 +785,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       if (!res.data || res.data.length === 0) {
         throw new Error("Brak wydań (releases) w repozytorium.");
       }
-      
+
       if (config.targetPackVersion && config.targetPackVersion !== 'latest') {
         releaseInfo = res.data.find(r => r.tag_name === config.targetPackVersion);
         if (!releaseInfo) {
@@ -958,7 +793,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
           releaseInfo = res.data[0];
         }
       } else {
-        releaseInfo = res.data[0]; // Pobiera najnowsze wydanie
+        releaseInfo = res.data[0];
       }
     } catch (err) {
       throw new Error(`Brak połączenia z GitHub API (${err.response?.status === 404 ? 'Repozytorium prywatne lub brak wydań' : err.message})`);
@@ -980,7 +815,6 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       mainWindow.webContents.send('status-message', `Wykryto nową wersję na serwerze: ${releaseInfo.name || releaseInfo.tag_name}. Przygotowywanie aktualizacji...`);
     }
 
-    // Wybieramy asset ZIP lub domyślny zipball_url
     let downloadUrl = null;
     const assetZip = releaseInfo.assets.find(a => a.name.endsWith('.zip'));
 
@@ -996,7 +830,6 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       throw new Error("Nie znaleziono pliku do pobrania w najnowszym wydaniu.");
     }
 
-    // Pobranie pliku ZIP
     const zipPath = path.join(tempDir, 'pack.zip');
     await downloadFile(downloadUrl, zipPath, (progressData) => {
       mainWindow.webContents.send('pack-sync-progress', {
@@ -1017,17 +850,14 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
     }
     fs.mkdirSync(extractPath, { recursive: true });
 
-    // Rozpakowanie archiwum
     const zip = new AdmZip(zipPath);
     zip.extractAllTo(extractPath, true);
 
-    // Szukamy głównego katalogu z plikami Minecrafta (mods, config)
     const packRoot = findPackRoot(extractPath);
     if (!packRoot) {
       throw new Error("W archiwum ZIP nie odnaleziono katalogu z modami (mods) ani konfiguracją (config).");
     }
 
-    // Sprawdzamy czy jest plik konfiguracyjny launchera w paczce
     const innerConfigPath = path.join(packRoot, 'launcher-config.json');
     if (fs.existsSync(innerConfigPath)) {
       try {
@@ -1053,7 +883,6 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       }
     }
 
-    // Zapamiętujemy pliki paczki wyłączone przez użytkownika przed aktualizacją
     const disabledPackFiles = new Set();
     const modsDir = path.join(gameDir, 'mods');
     const rpDir = path.join(gameDir, 'resourcepacks');
@@ -1069,7 +898,6 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       });
     }
 
-    // Usuwanie starych plików paczki na podstawie manifestu
     mainWindow.webContents.send('status-message', 'Usuwanie niepotrzebnych lub starych plików...');
     if (fs.existsSync(manifestPath)) {
       try {
@@ -1089,11 +917,9 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       }
     }
 
-    // Kopiowanie nowych plików paczki i generowanie nowego manifestu
     const copiedFiles = [];
     copyDirRecursive(packRoot, gameDir, copiedFiles, gameDir);
 
-    // Przywracamy wyłączony stan dla modów/paczek wyłączonych przez użytkownika
     if (disabledPackFiles.size > 0) {
       for (const fileRel of copiedFiles) {
         const fullPath = path.join(gameDir, fileRel);
@@ -1111,10 +937,8 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       }
     }
 
-    // Zapisujemy nowy manifest paczki
     fs.writeFileSync(manifestPath, JSON.stringify(copiedFiles, null, 2), 'utf8');
 
-    // Czyszczenie folderu temp
     fs.rmSync(tempDir, { recursive: true, force: true });
 
     config.packVersion = latestVersion;
@@ -1128,7 +952,6 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
     console.error("Błąd synchronizacji paczki:", err);
     mainWindow.webContents.send('status-message', `Błąd: ${err.message}`);
     mainWindow.webContents.send('pack-sync-progress', { status: 'error', error: err.message });
-    // Sprzątanie temp w razie błędu
     if (fs.existsSync(tempDir)) {
       try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) { }
     }
@@ -1160,7 +983,6 @@ ipcMain.handle('get-latest-release-notes', async () => {
   return null;
 });
 
-// Pomocnicza funkcja zwracająca listę wewnętrznych modId z paczki głównej (na podstawie pack-manifest.json)
 function getMainPackModIds() {
   const config = readConfig();
   const gameDir = config.gameDir;
@@ -1189,9 +1011,7 @@ function getMainPackModIds() {
                   mainModIds.add(modJson.name.toLowerCase().replace(/[^a-z0-9]/g, ''));
                 }
               }
-            } catch (e) {
-              // Ignorujemy błędy odczytu pojedynczych jarów
-            }
+            } catch (e) { }
           }
         }
       }
@@ -1202,8 +1022,6 @@ function getMainPackModIds() {
   return Array.from(mainModIds);
 }
 
-// IPC - Integracja z Modrinth API
-// Pomocnicza funkcja mapująca typ projektu na katalog w grze
 function getFolderForProjectType(gameDir, projectType) {
   if (projectType === 'shader') {
     return path.join(gameDir, 'shaderpacks');
@@ -1213,12 +1031,9 @@ function getFolderForProjectType(gameDir, projectType) {
   return path.join(gameDir, 'mods');
 }
 
-// Pomocnicza funkcja wykonująca wyszukiwanie w Modrinth API
 async function performModrinthSearch(query, mcVersion, projectType) {
   try {
     const url = `https://api.modrinth.com/v2/search`;
-    
-    // Budujemy listę facetów w zależności od typu projektu
     const facetsList = [];
     if (projectType === 'mod') {
       facetsList.push(["categories:fabric"]);
@@ -1266,12 +1081,10 @@ async function performModrinthSearch(query, mcVersion, projectType) {
   }
 }
 
-// IPC - Integracja z Modrinth API (Uogólnione wyszukiwanie)
 ipcMain.handle('search-modrinth', async (event, { query, mcVersion, projectType }) => {
   return performModrinthSearch(query, mcVersion, projectType);
 });
 
-// Pomocnicza funkcja instalująca projekt z Modrinth wraz z automatycznym pobieraniem jego wymaganych zależności
 async function installModrinthProjectInternal(projectId, projectType, config, gameDir, installedSet = new Set()) {
   if (installedSet.has(projectId)) {
     return { success: true, message: 'Projekt przetworzony w bieżącej sesji.' };
@@ -1283,7 +1096,6 @@ async function installModrinthProjectInternal(projectId, projectType, config, ga
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
-  // 1. Pobieranie informacji o projekcie (slug & title)
   let realSlug = projectId.toLowerCase().replace(/[^a-z0-9]/g, '');
   let realTitle = realSlug;
   let projectInfo = { title: projectId, icon_url: null, slug: projectId };
@@ -1296,11 +1108,8 @@ async function installModrinthProjectInternal(projectId, projectType, config, ga
       if (projRes.data.slug) realSlug = projRes.data.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
       if (projRes.data.title) realTitle = projRes.data.title.toLowerCase().replace(/[^a-z0-9]/g, '');
     }
-  } catch (e) {
-    // W razie błędu sieciowego przy zapytaniu o metadane, używamy przekazanego ID
-  }
+  } catch (e) { }
 
-  // Pobieramy wersję z Modrinth API w celu uzyskania pliku oraz jego zależności
   let targetVersion = null;
   try {
     const versionsUrl = `https://api.modrinth.com/v2/project/${projectId}/version`;
@@ -1337,9 +1146,8 @@ async function installModrinthProjectInternal(projectId, projectType, config, ga
     if (compatibleVersions.length > 0) {
       targetVersion = compatibleVersions[0];
     }
-  } catch (e) {}
+  } catch (e) { }
 
-  // Sprawdzamy czy plik modyfikacji istnieje już na dysku
   const existingFiles = fs.readdirSync(targetDir);
   const matchFile = existingFiles.find(f => {
     const cleanName = f.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1373,7 +1181,6 @@ async function installModrinthProjectInternal(projectId, projectType, config, ga
     const tempPath = path.join(gameDir, 'temp_' + projectFile.filename);
     await downloadFile(projectFile.url, tempPath, null, { 'User-Agent': 'Ciapongi-RP-Launcher' });
 
-    // Weryfikacja duplikatów modów z paczki głównej
     if (projectType === 'mod') {
       let downloadedInternalModId = null;
       try {
@@ -1383,12 +1190,12 @@ async function installModrinthProjectInternal(projectId, projectType, config, ga
           const modJson = JSON.parse(zipEntry.getData().toString('utf8'));
           downloadedInternalModId = modJson.id;
         }
-      } catch (e) {}
+      } catch (e) { }
 
       if (downloadedInternalModId) {
         const mainPackModIds = getMainPackModIds();
         if (mainPackModIds.includes(downloadedInternalModId.toLowerCase())) {
-          try { fs.rmSync(tempPath, { force: true }); } catch (e) {}
+          try { fs.rmSync(tempPath, { force: true }); } catch (e) { }
           return { success: true, message: `Mod "${projectFile.filename}" jest już częścią paczki głównej.` };
         }
       }
@@ -1397,13 +1204,12 @@ async function installModrinthProjectInternal(projectId, projectType, config, ga
     const destPath = path.join(targetDir, projectFile.filename);
     fs.renameSync(tempPath, destPath);
 
-    // Zapis w manifeście użytkownika
     const userManifestPath = path.join(gameDir, 'user-manifest.json');
     let userProjects = [];
     if (fs.existsSync(userManifestPath)) {
       try {
         userProjects = JSON.parse(fs.readFileSync(userManifestPath, 'utf8'));
-      } catch (e) {}
+      } catch (e) { }
     }
     userProjects = userProjects.filter(p => p.id !== projectId);
     userProjects.push({
@@ -1417,13 +1223,11 @@ async function installModrinthProjectInternal(projectId, projectType, config, ga
     fs.writeFileSync(userManifestPath, JSON.stringify(userProjects, null, 2), 'utf8');
   }
 
-  // 3. AUTOMATYCZNE SPRAWDZENIE I POBRANIE WYMAGANYCH ZALEŻNOŚCI (Required Dependencies)
   if (targetVersion && targetVersion.dependencies && Array.isArray(targetVersion.dependencies)) {
     for (const dep of targetVersion.dependencies) {
       if (dep.dependency_type === 'required') {
         let depProjectId = dep.project_id;
-        
-        // Czasami Modrinth API zwraca zależność bez project_id, ale z version_id
+
         if (!depProjectId && dep.version_id) {
           try {
             const verRes = await axios.get(`https://api.modrinth.com/v2/version/${dep.version_id}`, {
@@ -1452,7 +1256,6 @@ async function installModrinthProjectInternal(projectId, projectType, config, ga
   return { success: true, title: projectInfo.title || projectId };
 }
 
-// IPC - Pobieranie i instalowanie projektu z Modrinth (Mod / Shader / ResourcePack)
 ipcMain.handle('install-modrinth-project', async (event, { projectId, projectType }) => {
   const config = readConfig();
   const gameDir = config.gameDir;
@@ -1468,7 +1271,6 @@ ipcMain.handle('install-modrinth-project', async (event, { projectId, projectTyp
   }
 });
 
-// IPC - Pobieranie zainstalowanych projektów użytkownika (Mody / Shadery / ResourcePacki / Paczka)
 ipcMain.handle('get-user-projects', async (event, { projectType }) => {
   const config = readConfig();
   const gameDir = config.gameDir;
@@ -1538,14 +1340,13 @@ ipcMain.handle('get-user-projects', async (event, { projectType }) => {
     } catch (e) { }
   }
 
-  // Pobieramy listę plików z paczki serwerowej (pack-manifest.json), aby wykluczyć je z zakładki Własne
   const packManifestPath = path.join(gameDir, 'pack-manifest.json');
   const packManifestFiles = new Set();
   if (fs.existsSync(packManifestPath)) {
     try {
       const manifestArr = JSON.parse(fs.readFileSync(packManifestPath, 'utf8'));
       const prefix = (projectType === 'resourcepack') ? 'resourcepacks/' :
-                     (projectType === 'shader') ? 'shaderpacks/' : 'mods/';
+        (projectType === 'shader') ? 'shaderpacks/' : 'mods/';
       for (const mFile of manifestArr) {
         if (mFile.toLowerCase().startsWith(prefix)) {
           const baseName = path.basename(mFile).replace(/\.disabled$/i, '').toLowerCase();
@@ -1559,7 +1360,6 @@ ipcMain.handle('get-user-projects', async (event, { projectType }) => {
     const filteredProjects = [];
     let manifestChanged = false;
 
-    // Pobieramy projekty z manifestu o odpowiednim typie (brak typu = mod)
     const typedProjects = userProjects.filter(p => {
       const itemType = p.type || 'mod';
       return itemType === projectType;
@@ -1580,7 +1380,6 @@ ipcMain.handle('get-user-projects', async (event, { projectType }) => {
         continue;
       }
 
-      // Pomijamy jeśli z jakiegoś powodu plik serwerowy znalazł się w manifeście użytkownika
       if (packManifestFiles.has(project.filename.toLowerCase())) {
         continue;
       }
@@ -1591,7 +1390,6 @@ ipcMain.handle('get-user-projects', async (event, { projectType }) => {
       });
     }
 
-    // Skanowanie dysku (dodawanie plików wrzuconych ręcznie)
     if (fs.existsSync(targetDir)) {
       const extPattern = projectType === 'mod' ? /\.jar$/i : /\.zip$/i;
       const diskFiles = fs.readdirSync(targetDir);
@@ -1603,7 +1401,6 @@ ipcMain.handle('get-user-projects', async (event, { projectType }) => {
         if (isStandard || isDisabled) {
           const baseFilename = isStandard ? file : file.slice(0, -9);
 
-          // Kluczowe: Wykluczamy pliki wchodzące w skład paczki serwerowej z kategorii "Własne"!
           if (packManifestFiles.has(baseFilename.toLowerCase())) {
             continue;
           }
@@ -1637,7 +1434,6 @@ ipcMain.handle('get-user-projects', async (event, { projectType }) => {
   }
 });
 
-// IPC - Włączanie/wyłączanie projektu (.disabled)
 ipcMain.handle('toggle-project', async (event, { filename, enabled, projectType }) => {
   const config = readConfig();
   const gameDir = config.gameDir;
@@ -1651,8 +1447,7 @@ ipcMain.handle('toggle-project', async (event, { filename, enabled, projectType 
 
   try {
     const diskFiles = fs.readdirSync(targetDir);
-    
-    // Szukamy pliku na dysku (własnego lub z paczki serwerowej)
+
     const exactStandard = diskFiles.find(f => !f.endsWith('.disabled') && f.toLowerCase() === cleanTarget);
     const exactDisabled = diskFiles.find(f => f.endsWith('.disabled') && f.toLowerCase() === (cleanTarget + '.disabled'));
     const fuzzyStandard = diskFiles.find(f => !f.endsWith('.disabled') && (f.toLowerCase().includes(cleanTarget.replace(/\.(jar|zip)$/i, ''))));
@@ -1675,7 +1470,6 @@ ipcMain.handle('toggle-project', async (event, { filename, enabled, projectType 
       }
     }
 
-    // Aktualizacja w manifeście użytkownika
     const userManifestPath = path.join(gameDir, 'user-manifest.json');
     if (fs.existsSync(userManifestPath)) {
       try {
@@ -1696,7 +1490,6 @@ ipcMain.handle('toggle-project', async (event, { filename, enabled, projectType 
   }
 });
 
-// IPC - Usuwanie projektu z dysku
 ipcMain.handle('delete-project', async (event, { filename, projectType }) => {
   const config = readConfig();
   const gameDir = config.gameDir;
@@ -1719,7 +1512,6 @@ ipcMain.handle('delete-project', async (event, { filename, projectType }) => {
       }
     }
 
-    // Aktualizacja w manifeście
     const userManifestPath = path.join(gameDir, 'user-manifest.json');
     if (fs.existsSync(userManifestPath)) {
       try {
@@ -1735,7 +1527,6 @@ ipcMain.handle('delete-project', async (event, { filename, projectType }) => {
   }
 });
 
-// IPC - Dodanie lokalnego projektu (przez drag & drop lub wybór pliku)
 ipcMain.handle('add-local-project', async (event, { filePath, projectType }) => {
   const config = readConfig();
   const gameDir = config.gameDir;
@@ -1763,14 +1554,12 @@ ipcMain.handle('add-local-project', async (event, { filePath, projectType }) => 
 
     const destPath = path.join(targetDir, filename);
 
-    // Kopiujemy do temp
     const tempPath = path.join(gameDir, 'temp_' + filename);
     fs.copyFileSync(filePath, tempPath);
 
     let internalId = null;
     let displayName = filename.replace(/\.(jar|zip)$/i, '');
 
-    // Dla modów weryfikujemy fabric.mod.json
     if (projectType === 'mod') {
       try {
         const zip = new AdmZip(tempPath);
@@ -1800,7 +1589,6 @@ ipcMain.handle('add-local-project', async (event, { filePath, projectType }) => 
 
     fs.renameSync(tempPath, destPath);
 
-    // Rejestracja w user-manifest.json
     const userManifestPath = path.join(gameDir, 'user-manifest.json');
     let userProjects = [];
     if (fs.existsSync(userManifestPath)) {
@@ -1831,7 +1619,6 @@ ipcMain.handle('add-local-project', async (event, { filePath, projectType }) => 
   }
 });
 
-// Wsteczna kompatybilność ze starymi handlerami
 ipcMain.handle('search-mods', async (event, { query, mcVersion }) => {
   return performModrinthSearch(query, mcVersion, 'mod');
 });
@@ -1856,12 +1643,11 @@ ipcMain.handle('add-local-mod', async (event, { filePath }) => {
   return await ipcMain.listeners('add-local-project')[0](event, { filePath, projectType: 'mod' });
 });
 
-// Pomocnicza funkcja wykrywająca i wyłączająca duplikaty modów w folderze mods/
 function cleanDuplicateMods(modsDir) {
   if (!fs.existsSync(modsDir)) return;
   try {
     const files = fs.readdirSync(modsDir).filter(f => f.endsWith('.jar'));
-    const modIdMap = {}; // modId -> [ { file, version, path, mtime } ]
+    const modIdMap = {};
 
     for (const file of files) {
       const filePath = path.join(modsDir, file);
@@ -1880,19 +1666,14 @@ function cleanDuplicateMods(modsDir) {
             });
           }
         }
-      } catch (e) {
-        // Ignorujemy niepoprawne pliki
-      }
+      } catch (e) { }
     }
 
     const disabledList = [];
     for (const modId in modIdMap) {
       const list = modIdMap[modId];
       if (list.length > 1) {
-        // Sortujemy: nowszy plik (po dacie modyfikacji) na początek
         list.sort((a, b) => b.mtime - a.mtime);
-
-        // Wyłączamy duplikaty od drugiego indeksu
         for (let i = 1; i < list.length; i++) {
           const duplicate = list[i];
           const disabledPath = duplicate.path + '.disabled';
@@ -1911,7 +1692,6 @@ function cleanDuplicateMods(modsDir) {
   }
 }
 
-// IPC - Uruchamianie gry Minecraft
 ipcMain.handle('launch-game', async () => {
   const config = readConfig();
   const gameDir = config.gameDir;
@@ -1920,10 +1700,8 @@ ipcMain.handle('launch-game', async () => {
     fs.mkdirSync(gameDir, { recursive: true });
   }
 
-  // Czyszczenie duplikatów modów przed startem gry
   cleanDuplicateMods(path.join(gameDir, 'mods'));
 
-  // Czyszczenie starego pliku logu przed uruchomieniem
   try {
     fs.writeFileSync(logPath, `--- LOG URUCHOMIENIA GRY - ${new Date().toLocaleString()} ---\n`, 'utf8');
   } catch (e) {
@@ -1931,12 +1709,10 @@ ipcMain.handle('launch-game', async () => {
   }
 
   try {
-    // Określenie wersji Javy (automatycznie lub na podstawie wybranej wartości)
     let requiredJavaVer = 17;
     if (config.javaVersion && config.javaVersion !== 'auto') {
       requiredJavaVer = parseInt(config.javaVersion, 10);
     } else {
-      // Automatyczny dobór na podstawie wersji MC
       const mcVer = config.minecraftVersion;
       if (mcVer.startsWith('1.20.5') || mcVer.startsWith('1.20.6') || mcVer.startsWith('1.21') || mcVer.startsWith('1.22')) {
         requiredJavaVer = 21;
@@ -1947,7 +1723,6 @@ ipcMain.handle('launch-game', async () => {
       }
     }
 
-    // Krok 1: Weryfikacja / Pobieranie Javy
     let finalJavaPath = config.javaPath;
     if (!finalJavaPath) {
       const javaDir = path.join(gameDir, `java-runtime-${requiredJavaVer}`);
@@ -1956,7 +1731,6 @@ ipcMain.handle('launch-game', async () => {
       if (javaExec) {
         finalJavaPath = javaExec;
       } else {
-        // Musimy pobrać przenośną wersję Javy
         mainWindow.webContents.send('status-message', `Przygotowywanie środowiska Java ${requiredJavaVer}...`);
         mainWindow.webContents.send('launch-progress', { status: 'java_download', progress: 0 });
 
@@ -1987,12 +1761,10 @@ ipcMain.handle('launch-game', async () => {
           const zip = new AdmZip(javaTempFile);
           zip.extractAllTo(javaDir, true);
         } else {
-          // Na Linuxie rozpakowujemy za pomocą tar
           const { execSync } = require('child_process');
           execSync(`tar -xzf "${javaTempFile}" -C "${javaDir}"`);
         }
 
-        // Usuń plik tymczasowy Javy
         fs.rmSync(javaTempFile);
 
         finalJavaPath = findJavaExecutable(javaDir);
@@ -2000,7 +1772,6 @@ ipcMain.handle('launch-game', async () => {
           throw new Error(`Pobrane środowisko Java ${requiredJavaVer} jest nieprawidłowe. Brak pliku wykonywalnego java.`);
         }
 
-        // Na Linuxie upewniamy się, że plik java jest wykonywalny
         if (!isWin) {
           try {
             fs.chmodSync(finalJavaPath, '755');
@@ -2013,7 +1784,6 @@ ipcMain.handle('launch-game', async () => {
 
     mainWindow.webContents.send('status-message', `Java: ${finalJavaPath}`);
 
-    // Krok 2: Pobieranie profilu Fabric i tworzenie folderu wersji
     mainWindow.webContents.send('status-message', 'Uruchamianie silnika Fabric...');
 
     const fabricVersionId = `fabric-loader-${config.loaderVersion}-${config.minecraftVersion}`;
@@ -2032,7 +1802,6 @@ ipcMain.handle('launch-game', async () => {
       }
     }
 
-    // Krok 3: Konfiguracja MCLC i start gry
     mainWindow.webContents.send('status-message', 'Uruchamianie gry Minecraft (pobieranie plików i bibliotek)...');
 
     const launcher = new Client();
@@ -2049,115 +1818,31 @@ ipcMain.handle('launch-game', async () => {
       }
     };
 
-    // Obsługa uwierzytelniania Microsoft Premium
     if (config.loginType === 'microsoft' && config.microsoftAuth) {
-      let mcToken = config.microsoftAuth.access_token;
-
-      // Odświeżamy token przy kliknięciu Graj, jeśli wygaśnie w ciągu 1 godziny (lub już wygasł)
-      if (Date.now() > (config.microsoftAuth.expiresAt || 0) - 3600000) {
-        logToFile("[SYSTEM] Token Microsoft wygasł lub wygasa w ciągu godziny. Odświeżanie sesji przed startem gry...");
-        try {
-          // 1. Refresh MS Token
-          const refreshRes = await axios.post('https://login.live.com/oauth20_token.srf',
-            new URLSearchParams({
-              client_id: '00000000402b5328',
-              refresh_token: config.microsoftAuth.refresh_token,
-              grant_type: 'refresh_token',
-              redirect_uri: 'https://login.live.com/oauth20_desktop.srf'
-            }).toString(),
-            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-          );
-
-          const msAccessToken = refreshRes.data.access_token;
-          const msRefreshToken = refreshRes.data.refresh_token || config.microsoftAuth.refresh_token;
-
-          // 2. Xbox Live Auth
-          const xboxAuthRes = await axios.post('https://user.auth.xboxlive.com/user/authenticate', {
-            Properties: {
-              AuthMethod: 'RPS',
-              SiteName: 'user.auth.xboxlive.com',
-              RpsTicket: msAccessToken.startsWith('d=') ? msAccessToken : `d=${msAccessToken}`
-            },
-            RelyingParty: 'http://auth.xboxlive.com',
-            TokenType: 'JWT'
-          }, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            }
-          });
-
-          const xboxToken = xboxAuthRes.data.Token;
-          const uhs = xboxAuthRes.data.DisplayClaims.xui[0].uhs;
-
-          // 3. XSTS Auth
-          const xstsRes = await axios.post('https://xsts.auth.xboxlive.com/xsts/authorize', {
-            Properties: {
-              SandboxId: 'RETAIL',
-              UserTokens: [xboxToken]
-            },
-            RelyingParty: 'rp://api.minecraftservices.com/',
-            TokenType: 'JWT'
-          }, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            }
-          });
-
-          const xstsToken = xstsRes.data.Token;
-
-          // 4. Minecraft Login
-          const mcLoginRes = await axios.post('https://api.minecraftservices.com/authentication/login_with_xbox', {
-            identityToken: `XBL3.0 x=${uhs};${xstsToken}`
-          }, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            }
-          });
-
-          mcToken = mcLoginRes.data.access_token;
-
-          // Uaktualniamy konfigurację
-          config.microsoftAuth = {
-            uuid: config.microsoftAuth.uuid,
-            name: config.microsoftAuth.name,
-            access_token: mcToken,
-            refresh_token: msRefreshToken,
-            expiresAt: Date.now() + (mcLoginRes.data.expires_in * 1000)
-          };
-          if (config.accounts && typeof config.activeAccountIndex === 'number' && config.accounts[config.activeAccountIndex]) {
-            config.accounts[config.activeAccountIndex].microsoftAuth = config.microsoftAuth;
+      if (config.microsoftAuth.profile) {
+        authObject = config.microsoftAuth.profile;
+      } else {
+        authObject = {
+          access_token: config.microsoftAuth.access_token,
+          client_token: 'client',
+          uuid: config.microsoftAuth.uuid,
+          name: config.microsoftAuth.name,
+          user_properties: '{}',
+          selected_profile: {
+            id: config.microsoftAuth.uuid,
+            name: config.microsoftAuth.name
           }
-          writeConfig(config);
-          logToFile("[SYSTEM] Sesja Microsoft została pomyślnie odświeżona.");
-        } catch (err) {
-          console.error("Błąd podczas odświeżania tokenu Microsoft:", err.message);
-          throw new Error("Sesja Microsoft wygasła. Zaloguj się ponownie w ustawieniach launchera.");
-        }
+        };
       }
-
-      authObject = {
-        access_token: mcToken,
-        client_token: 'client',
-        uuid: config.microsoftAuth.uuid,
-        name: config.microsoftAuth.name,
-        user_properties: '{}',
-        selected_profile: {
-          id: config.microsoftAuth.uuid,
-          name: config.microsoftAuth.name
-        }
-      };
     }
 
     const launchOpts = {
       authorization: authObject,
       root: gameDir,
       version: {
-        number: config.minecraftVersion, // base vanilla version (ex. "1.20.1")
+        number: config.minecraftVersion,
         type: 'release',
-        custom: fabricVersionId          // custom loader version (ex. "fabric-loader-0.15.11-1.20.1")
+        custom: fabricVersionId
       },
       memory: {
         max: `${config.ram}M`,
@@ -2166,17 +1851,14 @@ ipcMain.handle('launch-game', async () => {
       javaPath: finalJavaPath
     };
 
-    // Dobór profilu flag JVM
     let profileToUse = config.jvmProfile || 'auto';
     if (profileToUse === 'auto') {
       const totalMb = Math.floor(os.totalmem() / (1024 * 1024));
       if (totalMb <= 4500) {
-        profileToUse = 'ultra_potato'; // Ekstremalnie słabe PC (<=4GB RAM)
+        profileToUse = 'ultra_potato';
       } else if (totalMb <= 6500) {
-        profileToUse = 'potato'; // Słabe PC (4-6GB RAM)
+        profileToUse = 'potato';
       } else {
-        // G1GC (Aikar's) jest lepszym wyborem dla klientów MC na każdym sprzęcie
-        // ZGC jest zoptymalizowany pod serwery i duże stercie, nie klientów MC
         profileToUse = 'optimized_g1gc';
       }
       logToFile(`[SYSTEM] Profil JVM ustawiony na 'auto'. Automatycznie dobrano profil: ${profileToUse} (Dostępna pamięć: ${totalMb} MB)`);
@@ -2184,7 +1866,6 @@ ipcMain.handle('launch-game', async () => {
       logToFile(`[SYSTEM] Używanie wybranego profilu JVM: ${profileToUse}`);
     }
 
-    // Dodatkowe zabezpieczenie: ZGC nie działa na Java 8
     if (profileToUse === 'extreme_zgc' && requiredJavaVer === 8) {
       logToFile("[SYSTEM] Ostrzeżenie: Wykryto Java 8 przy wybranym profilu ZGC. Zmiana profilu na G1GC dla kompatybilności.");
       profileToUse = 'optimized_g1gc';
@@ -2192,8 +1873,6 @@ ipcMain.handle('launch-game', async () => {
 
     let customArgs = [];
     if (profileToUse === 'ultra_potato') {
-      // Profil dla bardzo słabych PC (<=4GB RAM, laptopy, stare desktopy)
-      // Cel: minimalne zużycie RAM i CPU przez JVM, najkrótsze pauzy GC
       customArgs = [
         "-XX:+UseG1GC",
         "-XX:+UnlockExperimentalVMOptions",
@@ -2202,19 +1881,18 @@ ipcMain.handle('launch-game', async () => {
         "-XX:MaxGCPauseMillis=100",
         "-XX:G1HeapRegionSize=8M",
         "-XX:+DisableExplicitGC",
-        "-XX:-AlwaysPreTouch",          // NIE alokuj na starcie — oszczędza czas i RAM
-        "-XX:+UseStringDeduplication",  // Deduplikacja stringów — mniej RAM
+        "-XX:-AlwaysPreTouch",
+        "-XX:+UseStringDeduplication",
         "-XX:MinMetaspaceFreeRatio=5",
         "-XX:MaxMetaspaceFreeRatio=10",
-        "-XX:MaxDirectMemorySize=512m", // Ograniczamy pamięć natywną (Sodium/LWJGL)
-        "-Dsun.rmi.dgc.server.gcInterval=2147483646", // Wyłącz wymuszony GC przez RMI
+        "-XX:MaxDirectMemorySize=512m",
+        "-Dsun.rmi.dgc.server.gcInterval=2147483646",
         "-Djava.awt.headless=false",
         "-Dfml.ignorePatchDiscrepancies=true",
-        "-XX:ConcGCThreads=1",          // Tylko 1 wątek GC — nie kradnie CPU z gry
-        "-XX:ParallelGCThreads=2"       // Maks 2 wątki GC
+        "-XX:ConcGCThreads=1",
+        "-XX:ParallelGCThreads=2"
       ];
     } else if (profileToUse === 'potato') {
-      // Profil dla słabych PC (4-8GB RAM)
       customArgs = [
         "-XX:+UseG1GC",
         "-XX:+UnlockExperimentalVMOptions",
@@ -2245,7 +1923,7 @@ ipcMain.handle('launch-game', async () => {
         "-XX:+ParallelRefProcEnabled",
         "-XX:+UseStringDeduplication",
         "-XX:+AlwaysPreTouch",
-        "-XX:MaxDirectMemorySize=2G" // Optymalizacja pod Sodium/Iris
+        "-XX:MaxDirectMemorySize=2G"
       ];
     } else if (profileToUse === 'extreme_zgc') {
       customArgs = [
@@ -2254,11 +1932,11 @@ ipcMain.handle('launch-game', async () => {
         "-XX:+AlwaysPreTouch",
         "-XX:+DisableExplicitGC",
         "-XX:+ParallelRefProcEnabled",
-        "-XX:SoftMaxHeapSize=8192m",    // ZGC: limit miękki by nie trzymał całości
-        "-XX:MaxDirectMemorySize=2G"    // Optymalizacja pod Sodium/Iris
+        "-XX:SoftMaxHeapSize=8192m",
+        "-XX:MaxDirectMemorySize=2G"
       ];
       if (requiredJavaVer === 21) {
-        customArgs.push("-XX:+ZGenerational"); // Generational ZGC - lepszy dla krótko żyjących obiektów MC
+        customArgs.push("-XX:+ZGenerational");
       }
     }
 
@@ -2267,8 +1945,6 @@ ipcMain.handle('launch-game', async () => {
       logToFile(`[SYSTEM] Dodano argumenty JVM: ${customArgs.join(' ')}`);
     }
 
-    // Obsługa zdarzeń MCLC
-    // Obsługa zdarzeń MCLC
     launcher.on('debug', (e) => {
       const formatted = `[MCLC DEBUG] ${e}`;
       mainWindow.webContents.send('game-log', formatted);
@@ -2302,20 +1978,18 @@ ipcMain.handle('launch-game', async () => {
       }
     });
 
-    // Uruchomienie gry
     minecraftProcess = await launcher.launch(launchOpts);
 
     mainWindow.webContents.send('status-message', 'Gra pomyślnie wystartowała! Życzymy miłej zabawy.');
     mainWindow.webContents.send('launch-progress', { status: 'running', progress: 100 });
     logToFile("[SYSTEM] Pomyślnie przekazano kontrolę do procesu Minecraft.");
 
-    // Po poprawnym włączeniu chowany okno w zależności od trybu wydajności
     setTimeout(() => {
       if (mainWindow) {
         if (config.potatoMode) {
-          mainWindow.hide(); // Ukrywamy całkowicie okno (Chromium zwalnia pamięć i nie obciąża GPU)
+          mainWindow.hide();
         } else {
-          mainWindow.minimize(); // Domyślnie tylko minimalizujemy
+          mainWindow.minimize();
         }
       }
     }, 5000);

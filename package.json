@@ -1,6 +1,6 @@
 {
   "name": "ciapongi-rp-launcher",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "Dedykowany launcher Minecraft dla Ciapongi-RP",
   "author": "Ciapongi-RP",
   "main": "src/main/main.js",
@@ -17,8 +17,10 @@
   "dependencies": {
     "adm-zip": "^0.5.10",
     "axios": "^1.6.8",
+    "electron-updater": "^6.8.9",
     "lucide-react": "^0.368.0",
     "minecraft-launcher-core": "^3.2.2",
+    "msmc": "^5.0.5",
     "pngjs": "^7.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
@@ -33,11 +35,13 @@
     "vite": "^5.1.6"
   },
   "build": {
-    "publish": ["github"],
+    "publish": [
+      "github"
+    ],
     "appId": "com.ciapongirp.launcher",
     "productName": "CiapongiRPLauncher",
     "directories": {
-      "output": "dist-app"
+      "output": "Release"
     },
     "files": [
       "dist/**/*",
@@ -76,10 +80,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Ciapongi RP Launcher",
-      "artifactName": "${productName} Setup ${version} ${arch}.${ext}"
+      "artifactName": "CiapongiRPLauncher Setup ${version}.${ext}"
     },
     "portable": {
-      "artifactName": "${productName} ${version} ${arch}.${ext}"
+      "artifactName": "CiapongiRPLauncher ${version}.${ext}"
     }
   }
 }

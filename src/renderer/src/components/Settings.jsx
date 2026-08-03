@@ -20,6 +20,7 @@ function Settings({ config, onSave }) {
   const [javaVersion, setJavaVersion] = useState(config.javaVersion || 'auto');
   const [potatoMode, setPotatoMode] = useState(config.potatoMode || false);
   const [disableAutoUpdate, setDisableAutoUpdate] = useState(config.disableAutoUpdate || false);
+  const [autoUpdateLauncher, setAutoUpdateLauncher] = useState(config.autoUpdateLauncher !== false);
   const [jvmProfile, setJvmProfile] = useState(config.jvmProfile || 'auto');
   const [loginType, setLoginType] = useState(config.loginType || 'offline');
   const [microsoftAuth, setMicrosoftAuth] = useState(config.microsoftAuth || null);
@@ -33,6 +34,9 @@ function Settings({ config, onSave }) {
   const [installingMods, setInstallingMods] = useState(false);
   const [installStatus, setInstallStatus] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [updaterStatus, setUpdaterStatus] = useState('idle');
+  const [updaterProgress, setUpdaterProgress] = useState(0);
+  const [updaterMessage, setUpdaterMessage] = useState('');
 
   const installRecommendedModsPackage = async () => {
     setInstallingMods(true);
@@ -97,11 +101,32 @@ function Settings({ config, onSave }) {
     setJavaVersion(config.javaVersion || 'auto');
     setPotatoMode(config.potatoMode || false);
     setDisableAutoUpdate(config.disableAutoUpdate || false);
+    setAutoUpdateLauncher(config.autoUpdateLauncher !== false);
     setJvmProfile(config.jvmProfile || 'auto');
     setLoginType(config.loginType || 'offline');
     setMicrosoftAuth(config.microsoftAuth || null);
     setTheme(config.theme || 'dark-violet');
   }, [config]);
+
+  useEffect(() => {
+    if (window.api && window.api.onLauncherUpdateEvent) {
+      const cleanup = window.api.onLauncherUpdateEvent((data) => {
+        setUpdaterStatus(data.status);
+        if (data.status === 'downloading') {
+          setUpdaterProgress(data.progress || 0);
+        } else if (data.status === 'error') {
+          setUpdaterMessage(data.error);
+        } else if (data.status === 'available') {
+          setUpdaterMessage(`Dostępna nowa wersja: ${data.info?.version || ''}`);
+        } else if (data.status === 'not-available') {
+          setUpdaterMessage('Posiadasz najnowszą wersję.');
+        } else if (data.status === 'downloaded') {
+          setUpdaterMessage('Gotowe do instalacji. Zrestartuj launcher.');
+        }
+      });
+      return cleanup;
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchSystemSpecs() {
@@ -129,6 +154,7 @@ function Settings({ config, onSave }) {
       javaVersion,
       potatoMode,
       disableAutoUpdate,
+      autoUpdateLauncher,
       jvmProfile,
       loginType,
       microsoftAuth,
@@ -136,6 +162,24 @@ function Settings({ config, onSave }) {
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleCheckLauncherUpdates = async () => {
+    setUpdaterStatus('checking');
+    setUpdaterMessage('');
+    if (window.api && window.api.checkForLauncherUpdates) {
+      const res = await window.api.checkForLauncherUpdates();
+      if (!res.success) {
+        setUpdaterStatus('error');
+        setUpdaterMessage(res.error);
+      }
+    }
+  };
+
+  const handleInstallLauncherUpdate = async () => {
+    if (window.api && window.api.installLauncherUpdate) {
+      await window.api.installLauncherUpdate();
+    }
   };
 
   const handleMicrosoftLogin = async () => {
@@ -265,6 +309,69 @@ function Settings({ config, onSave }) {
               </div>
             </div>
 
+            {/* Aktualizacje Launchera */}
+            <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '12px', flexGrow: 1 }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+                    <RefreshCw size={20} className={updaterStatus === 'checking' || updaterStatus === 'downloading' ? 'spin' : ''} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <h4 style={{ fontSize: '15px', fontWeight: '700', margin: 0, color: 'var(--text-main)' }}>Aktualizacje Launchera</h4>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                      Sprawdź, czy dostępna jest nowa wersja launchera.<br/>
+                      Zawsze możesz ręcznie sprawdzić najnowsze wydanie.
+                    </span>
+                    
+                    {updaterMessage && (
+                      <span style={{ fontSize: '12px', fontWeight: '600', color: updaterStatus === 'error' ? 'var(--color-danger)' : 'var(--color-success)', marginTop: '4px' }}>
+                        {updaterMessage}
+                      </span>
+                    )}
+                    {updaterStatus === 'downloading' && (
+                      <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', marginTop: '6px', overflow: 'hidden' }}>
+                        <div style={{ width: `${updaterProgress}%`, height: '100%', background: '#38bdf8', transition: 'width 0.2s' }}></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {updaterStatus === 'downloaded' ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleInstallLauncherUpdate}
+                    style={{ padding: '0 16px', height: '36px', fontSize: '13px', whiteSpace: 'nowrap' }}
+                  >
+                    Instaluj i uruchom ponownie
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={handleCheckLauncherUpdates}
+                    disabled={updaterStatus === 'checking' || updaterStatus === 'downloading'}
+                    style={{ padding: '0 16px', height: '36px', border: '1px solid var(--border-color)', fontSize: '13px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <RefreshCw size={14} className={updaterStatus === 'checking' ? 'spin' : ''} />
+                    Sprawdź aktualizacje
+                  </button>
+                )}
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '10px', padding: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '80%' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>Pobieraj aktualizacje automatycznie w tle</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Wyłączenie tej opcji sprawi, że launcher będzie pytał przed pobraniem plików.
+                  </span>
+                </div>
+                <label className="switch">
+                  <input type="checkbox" checked={autoUpdateLauncher} onChange={() => setAutoUpdateLauncher(!autoUpdateLauncher)} />
+                  <span className="slider"></span>
+                </label>
+              </div>
+            </div>
 
             {/* Ustawienia zaawansowane */}
             <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

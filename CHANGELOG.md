@@ -2,6 +2,24 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.0.4]
+### Dodano (Added)
+- **Niestandardowy Updater GitHub (`github-updater.js`):** Zastąpiono `electron-updater` własnym modułem odpytującym bezpośrednio GitHub API (`/releases/latest`). Nowe rozwiązanie nie wymaga pliku `latest.yml` i jest w pełni niezależne od zewnętrznych bibliotek — opiera się wyłącznie na wbudowanym module `https` Node.js.
+- **Badge aktualizacji w sidebarze:** Przy przycisku „Ustawienia" pojawia się teraz pulsująca kolorowa kropka gdy dostępna jest aktualizacja launchera (niebieska = dostępna, zielona = gotowa do instalacji), bez konieczności wchodzenia do zakładki Ustawień.
+
+### Poprawiono (Fixed)
+- **Animacja ikony odświeżania:** Naprawiono brakującą klasę CSS `.spin` powodującą brak animacji obracającej się ikony podczas sprawdzania i pobierania aktualizacji.
+- **Guard trybu deweloperskiego:** Updater launchera jest teraz automatycznie wyłączany gdy aplikacja uruchamiana jest przez `npm run dev`, eliminując fałszywe błędy podczas pracy nad kodem.
+- **Dynamiczne `autoDownload`:** Ustawienie pobierania w tle jest teraz odczytywane z aktualnego konfiga przy każdym wywołaniu sprawdzania aktualizacji, a nie tylko przy starcie aplikacji.
+
+## [1.0.3]
+### Dodano (Added)
+- **Logika aktualizacji (electron-updater):** Właściwa implementacja sprawdzania, pobierania i instalowania aktualizacji launchera za pośrednictwem GitHub Releases w backendzie aplikacji (obsługa `main-win.js` i `main-linux.js`).
+- **Interfejs Aktualizacji:** Dodano do sekcji "Ustawienia" pełen, funkcjonalny panel informujący w czasie rzeczywistym o dostępności aktualizacji (z paskiem postępu) oraz przełącznik pobierania w tle.
+
+### Poprawiono (Fixed)
+- **Wymuszenie logowania (Czysta instalacja):** Usunięto lokalny plik z danymi logowania i konfiguracją środowiska deweloperskiego. Wygenerowane wersje są w pełni wyczyszczone – domyślnie wymagają logowania na konto.
+
 ## [1.0.2]
 ### Zmieniono (Changed)
 - **Przebudowa interfejsu (Ustawienia):** Zoptymalizowano układ i rozkład opcji. "Wykryta specyfikacja komputera" oraz "Motywy GUI" znajdują się po prawej stronie, podczas gdy po lewej zgrupowano podstawowe opcje i nowo powstałą, rozwijaną (w formie akordeonu) sekcję "Ustawienia zaawansowane".
