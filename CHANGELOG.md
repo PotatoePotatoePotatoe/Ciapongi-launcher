@@ -2,6 +2,16 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.0.6]
+### Dodano (Added)
+- **Niestandardowy Updater GitHub (`github-updater.js`):** Zastąpiono `electron-updater` własnym modułem odpytującym bezpośrednio GitHub API (`/releases/latest`). Nowe rozwiązanie nie wymaga pliku `latest.yml` — opiera się wyłącznie na wbudowanym module `https` Node.js i jest niezależne od zewnętrznych bibliotek.
+- **Badge aktualizacji w sidebarze:** Przy przycisku „Ustawienia" pojawia się teraz pulsująca kolorowa kropka gdy dostępna jest aktualizacja launchera (niebieska = dostępna do pobrania, zielona = gotowa do instalacji), bez konieczności wchodzenia do zakładki Ustawień.
+
+### Poprawiono (Fixed)
+- **Animacja ikony odświeżania:** Naprawiono brakującą klasę CSS `.spin` — ikona kręcąca się podczas sprawdzania i pobierania aktualizacji teraz działa poprawnie.
+- **Guard trybu deweloperskiego:** Updater launchera jest teraz automatycznie wyłączany gdy aplikacja uruchamiana jest przez `npm run dev`, eliminując fałszywe błędy podczas pracy nad kodem.
+- **Dynamiczne ustawienie auto-pobierania:** Opcja „Pobieraj aktualizacje automatycznie w tle" jest teraz odczytywana z aktualnego konfiga przy każdym sprawdzeniu, a nie tylko przy starcie aplikacji.
+
 ## [1.0.4]
 ### Dodano (Added)
 - **Niestandardowy Updater GitHub (`github-updater.js`):** Zastąpiono `electron-updater` własnym modułem odpytującym bezpośrednio GitHub API (`/releases/latest`). Nowe rozwiązanie nie wymaga pliku `latest.yml` i jest w pełni niezależne od zewnętrznych bibliotek — opiera się wyłącznie na wbudowanym module `https` Node.js.
