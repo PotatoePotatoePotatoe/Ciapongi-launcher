@@ -12,15 +12,8 @@ Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane 
 - **Guard trybu deweloperskiego:** Updater launchera jest teraz automatycznie wyłączany gdy aplikacja uruchamiana jest przez `npm run dev`, eliminując fałszywe błędy podczas pracy nad kodem.
 - **Dynamiczne ustawienie auto-pobierania:** Opcja „Pobieraj aktualizacje automatycznie w tle" jest teraz odczytywana z aktualnego konfiga przy każdym sprawdzeniu, a nie tylko przy starcie aplikacji.
 
-## [1.0.4]
-### Dodano (Added)
-- **Niestandardowy Updater GitHub (`github-updater.js`):** Zastąpiono `electron-updater` własnym modułem odpytującym bezpośrednio GitHub API (`/releases/latest`). Nowe rozwiązanie nie wymaga pliku `latest.yml` i jest w pełni niezależne od zewnętrznych bibliotek — opiera się wyłącznie na wbudowanym module `https` Node.js.
-- **Badge aktualizacji w sidebarze:** Przy przycisku „Ustawienia" pojawia się teraz pulsująca kolorowa kropka gdy dostępna jest aktualizacja launchera (niebieska = dostępna, zielona = gotowa do instalacji), bez konieczności wchodzenia do zakładki Ustawień.
-
-### Poprawiono (Fixed)
-- **Animacja ikony odświeżania:** Naprawiono brakującą klasę CSS `.spin` powodującą brak animacji obracającej się ikony podczas sprawdzania i pobierania aktualizacji.
-- **Guard trybu deweloperskiego:** Updater launchera jest teraz automatycznie wyłączany gdy aplikacja uruchamiana jest przez `npm run dev`, eliminując fałszywe błędy podczas pracy nad kodem.
-- **Dynamiczne `autoDownload`:** Ustawienie pobierania w tle jest teraz odczytywane z aktualnego konfiga przy każdym wywołaniu sprawdzania aktualizacji, a nie tylko przy starcie aplikacji.
+[1.0.4] i [1.0.5]
+Naprawiono logowanie do konta microsoft
 
 ## [1.0.3]
 ### Dodano (Added)
