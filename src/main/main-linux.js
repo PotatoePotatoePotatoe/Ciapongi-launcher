@@ -298,7 +298,7 @@ function createWindow() {
     minHeight: 600,
     title: "Ciapongi-RP Launcher",
     frame: false,
-    transparent: true,
+    transparent: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

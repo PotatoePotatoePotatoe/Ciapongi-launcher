@@ -327,6 +327,7 @@ body::before {
   height: 18px;
   border-radius: 50%;
   background: var(--gradient-primary);
+  border: 2px solid white;
   box-shadow: 0 0 8px var(--color-primary);
   transition: transform 0.1s ease;
 }
@@ -353,6 +354,7 @@ body::before {
 .btn-primary {
   background: var(--gradient-primary);
   color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   box-shadow: 0 4px 20px color-mix(in srgb, var(--color-primary) 25%, transparent);
 }
 
@@ -499,14 +501,14 @@ body::before {
 }
 
 input:checked + .slider {
-  background: var(--gradient-primary);
+  background: var(--color-primary);
   border-color: transparent;
 }
 
 input:checked + .slider:before {
   transform: translateX(22px);
   background-color: white;
-  box-shadow: 0 0 6px var(--color-secondary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 /* Log Console Overlay */
