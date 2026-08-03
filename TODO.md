@@ -1,1 +1,0 @@
-- [ ] Zrobic wersje launchera (niestandardowy updater), która do sprawdzania i pobierania aktualizacji z GitHub Releases nie bedzie wymagac wysylania pliku latest.yml, lecz oprze sie na bezposrednim odpytywaniu API GitHuba.
