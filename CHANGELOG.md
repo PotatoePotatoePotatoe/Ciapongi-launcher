@@ -12,8 +12,14 @@ Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane 
 - **Guard trybu deweloperskiego:** Updater launchera jest teraz automatycznie wyłączany gdy aplikacja uruchamiana jest przez `npm run dev`, eliminując fałszywe błędy podczas pracy nad kodem.
 - **Dynamiczne ustawienie auto-pobierania:** Opcja „Pobieraj aktualizacje automatycznie w tle" jest teraz odczytywana z aktualnego konfiga przy każdym sprawdzeniu, a nie tylko przy starcie aplikacji.
 
-[1.0.4] i [1.0.5]
-Naprawiono logowanie do konta microsoft
+## [1.0.5]
+### Poprawiono (Fixed)
+- **Logowanie Microsoft:** Naprawiono finalnie logowanie do konta Microsoft — uwierzytelnianie Premium działa stabilnie.
+
+## [1.0.4]
+### Poprawiono (Fixed)
+- **Logowanie Microsoft:** Pierwsze poprawki uwierzytelniania konta Microsoft.
+
 
 ## [1.0.3]
 ### Dodano (Added)
