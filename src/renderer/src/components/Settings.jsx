@@ -25,6 +25,7 @@ function Settings({ config, onSave }) {
   const [loginType, setLoginType] = useState(config.loginType || 'offline');
   const [microsoftAuth, setMicrosoftAuth] = useState(config.microsoftAuth || null);
   const [theme, setTheme] = useState(config.theme || 'dark-violet');
+  const [customColors, setCustomColors] = useState(config.customColors || { primary: '#8b5cf6', secondary: '#06b6d4' });
   const [systemRam, setSystemRam] = useState(16384);
   const [systemSpecs, setSystemSpecs] = useState({ cpu: 'Wyszukiwanie...', cores: 0, ram: 0, gpu: 'Nieznana' });
   const [saved, setSaved] = useState(false);
@@ -106,6 +107,7 @@ function Settings({ config, onSave }) {
     setLoginType(config.loginType || 'offline');
     setMicrosoftAuth(config.microsoftAuth || null);
     setTheme(config.theme || 'dark-violet');
+    setCustomColors(config.customColors || { primary: '#8b5cf6', secondary: '#06b6d4' });
   }, [config]);
 
   useEffect(() => {
@@ -141,6 +143,29 @@ function Settings({ config, onSave }) {
     fetchSystemSpecs();
   }, []);
 
+  // Generuje i aplikuje CSS vars dla wlasnego koloru — podglad na zywo
+  const applyCustomTheme = (primary, secondary) => {
+    const hexToRgb = (hex) => ({
+      r: parseInt(hex.slice(1,3), 16),
+      g: parseInt(hex.slice(3,5), 16),
+      b: parseInt(hex.slice(5,7), 16),
+    });
+    const { r: pr, g: pg, b: pb } = hexToRgb(primary);
+    const { r: sr, g: sg, b: sb } = hexToRgb(secondary);
+    const root = document.documentElement;
+    root.style.setProperty('--color-primary', primary);
+    root.style.setProperty('--color-primary-glow', `rgba(${pr},${pg},${pb},0.25)`);
+    root.style.setProperty('--color-secondary', secondary);
+    root.style.setProperty('--color-secondary-glow', `rgba(${sr},${sg},${sb},0.25)`);
+    root.style.setProperty('--gradient-primary', `linear-gradient(135deg, ${primary}, ${secondary})`);
+    const bgR = Math.max(0, Math.floor(pr * 0.04));
+    const bgG = Math.max(0, Math.floor(pg * 0.04));
+    const bgB = Math.max(0, Math.floor(pb * 0.07));
+    root.style.setProperty('--color-bg', `rgb(${bgR},${bgG},${bgB})`);
+    root.style.setProperty('--color-sidebar-bg', `rgba(${bgR},${bgG},${bgB},0.97)`);
+    document.body.style.background = `rgb(${bgR},${bgG},${bgB})`;
+  };
+
   const handleSave = () => {
     onSave({
       ...config,
@@ -158,7 +183,8 @@ function Settings({ config, onSave }) {
       jvmProfile,
       loginType,
       microsoftAuth,
-      theme
+      theme,
+      customColors,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
@@ -518,8 +544,81 @@ function Settings({ config, onSave }) {
                     </button>
                   );
                 })}
+
+                {/* Kafelek: Własny kolor */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTheme('custom');
+                    applyCustomTheme(customColors.primary, customColors.secondary);
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+                    padding: '12px 8px', borderRadius: '12px', cursor: 'pointer',
+                    border: theme === 'custom' ? '2px solid var(--color-primary)' : '2px dashed rgba(255,255,255,0.15)',
+                    background: theme === 'custom' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: customColors.primary }} />
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: customColors.secondary }} />
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: '600', color: theme === 'custom' ? 'var(--color-primary)' : 'var(--text-muted)', textAlign: 'center', lineHeight: '1.2' }}>
+                    Własny
+                  </span>
+                </button>
               </div>
+
+              {/* Panel wyboru kolorow — widoczny tylko gdy aktywny jest motyw 'custom' */}
+              {theme === 'custom' && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px', animation: 'fadeIn 0.2s ease' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)' }}>🎨 Własna paleta kolorów</span>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '120px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>Kolor główny (akcent)</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="color"
+                          value={customColors.primary}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const next = { ...customColors, primary: val };
+                            setCustomColors(next);
+                            applyCustomTheme(val, customColors.secondary);
+                          }}
+                          style={{ width: '40px', height: '36px', border: 'none', borderRadius: '8px', cursor: 'pointer', padding: '2px', background: 'transparent' }}
+                        />
+                        <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>{customColors.primary}</span>
+                      </div>
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '120px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>Kolor dodatkowy (gradient)</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="color"
+                          value={customColors.secondary}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const next = { ...customColors, secondary: val };
+                            setCustomColors(next);
+                            applyCustomTheme(customColors.primary, val);
+                          }}
+                          style={{ width: '40px', height: '36px', border: 'none', borderRadius: '8px', cursor: 'pointer', padding: '2px', background: 'transparent' }}
+                        />
+                        <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>{customColors.secondary}</span>
+                      </div>
+                    </label>
+                  </div>
+                  {/* Pasek podgladu gradientu */}
+                  <div style={{ height: '6px', borderRadius: '3px', background: `linear-gradient(90deg, ${customColors.primary}, ${customColors.secondary})` }} />
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                    Kliknij „Zapisz ustawienia" aby zachować własny motyw na stałe.
+                  </span>
+                </div>
+              )}
             </div>
+
 
             {/* Wykryta specyfikacja komputera */}
             <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

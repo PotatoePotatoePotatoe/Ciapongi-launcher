@@ -27,13 +27,36 @@ import AccountSwitcherPanel from './components/AccountSwitcherPanel';
 import AddOfflineAccountModal from './components/AddOfflineAccountModal';
 
 // Funkcja aplikuje CSS Variables dla wybranego motywu na :root
-function applyTheme(themeId) {
+function applyTheme(themeId, config) {
+  if (themeId === 'custom' && config?.customColors) {
+    const { primary, secondary } = config.customColors;
+    const hexToRgb = (hex) => ({
+      r: parseInt(hex.slice(1,3), 16),
+      g: parseInt(hex.slice(3,5), 16),
+      b: parseInt(hex.slice(5,7), 16),
+    });
+    const { r: pr, g: pg, b: pb } = hexToRgb(primary);
+    const { r: sr, g: sg, b: sb } = hexToRgb(secondary);
+    const root = document.documentElement;
+    root.style.setProperty('--color-primary', primary);
+    root.style.setProperty('--color-primary-glow', `rgba(${pr},${pg},${pb},0.25)`);
+    root.style.setProperty('--color-secondary', secondary);
+    root.style.setProperty('--color-secondary-glow', `rgba(${sr},${sg},${sb},0.25)`);
+    root.style.setProperty('--gradient-primary', `linear-gradient(135deg, ${primary}, ${secondary})`);
+    const bgR = Math.max(0, Math.floor(pr * 0.04));
+    const bgG = Math.max(0, Math.floor(pg * 0.04));
+    const bgB = Math.max(0, Math.floor(pb * 0.07));
+    root.style.setProperty('--color-bg', `rgb(${bgR},${bgG},${bgB})`);
+    root.style.setProperty('--color-sidebar-bg', `rgba(${bgR},${bgG},${bgB},0.97)`);
+    document.body.style.background = `rgb(${bgR},${bgG},${bgB})`;
+    return;
+  }
   const theme = THEMES[themeId] || THEMES[DEFAULT_THEME];
   const root = document.documentElement;
   Object.entries(theme.vars).forEach(([key, value]) => {
     root.style.setProperty(key, value);
   });
-  // Zmiana tła strony
+  // Zmiana tla strony
   document.body.style.background = theme.vars['--color-bg'];
 }
 
@@ -61,7 +84,7 @@ function App() {
   // Aplikowanie motywu przy zmianie config.theme
   useEffect(() => {
     if (config?.theme) {
-      applyTheme(config.theme);
+      applyTheme(config.theme, config);
     }
   }, [config?.theme]);
 
@@ -70,7 +93,7 @@ function App() {
     async function loadConfig() {
       const currentConfig = await window.api.getConfig();
       setConfig(currentConfig);
-      applyTheme(currentConfig.theme || DEFAULT_THEME);
+      applyTheme(currentConfig.theme || DEFAULT_THEME, currentConfig);
       setStatusMessage('Launcher gotowy do gry');
     }
     loadConfig();

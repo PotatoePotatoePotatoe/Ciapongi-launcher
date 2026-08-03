@@ -108,7 +108,7 @@ function FirstLaunchModal({ config, onComplete }) {
                 onClick={handleChooseOffline}
                 className="option-hover-card"
               >
-                <div style={{ ...styles.iconContainer, background: 'rgba(139, 92, 246, 0.1)', color: 'var(--color-primary)' }}>
+                <div style={{ ...styles.iconContainer, background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary)' }}>
                   <User size={24} />
                 </div>
                 <div style={styles.optionTextContainer}>
@@ -231,7 +231,7 @@ const styles = {
     left: '-30%',
     width: '160%',
     height: '160%',
-    background: 'radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 60%)',
+    background: 'radial-gradient(circle, color-mix(in srgb, var(--color-primary) 5%, transparent) 0%, transparent 60%)',
     zIndex: 0,
     pointerEvents: 'none',
   },

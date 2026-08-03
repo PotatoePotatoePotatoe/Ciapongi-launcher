@@ -2,6 +2,14 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.0.7]
+### Dodano (Added)
+- **Własne kolory interfejsu (Custom Theme):** Dodano nową funkcję w ustawieniach wyglądu pozwalającą graczom na swobodny wybór własnych kolorów (głównego akcentu i dodatkowego do gradientów) za pomocą wbudowanej palety barw. Zmiany są widoczne w czasie rzeczywistym przed zapisem.
+- **Ostatnie zmiany w launcherze:** Na głównym ekranie, bezpośrednio pod informacjami o aktualizacjach paczki z modami, znajduje się teraz nowa sekcja z changelogiem pobierana na żywo z platformy GitHub, dotycząca aktualizacji i nowości samego launchera.
+
+### Poprawiono (Fixed)
+- **Kolory podświetleń (Hover/Shadows):** Usunięto sztywno zapisane, fioletowe cienie i tła pojawiające się m.in. wokół awatara gracza oraz zaznaczonych opcji na pasku nawigacyjnym. Teraz każdy z takich elementów automatycznie adaptuje się i świeci barwą aktualnie używanego motywu (np. czerwony w trybie Crimson).
+
 ## [1.0.6]
 ### Dodano (Added)
 - **Niestandardowy Updater GitHub (`github-updater.js`):** Zastąpiono `electron-updater` własnym modułem odpytującym bezpośrednio GitHub API (`/releases/latest`). Nowe rozwiązanie nie wymaga pliku `latest.yml` — opiera się wyłącznie na wbudowanym module `https` Node.js i jest niezależne od zewnętrznych bibliotek.
@@ -28,6 +36,8 @@ Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane 
 
 ### Poprawiono (Fixed)
 - **Wymuszenie logowania (Czysta instalacja):** Usunięto lokalny plik z danymi logowania i konfiguracją środowiska deweloperskiego. Wygenerowane wersje są w pełni wyczyszczone – domyślnie wymagają logowania na konto.
+
+Poprzednie wersję usnięte ze względu na ochronę danych logowania developera
 
 ## [1.0.2]
 ### Zmieniono (Changed)

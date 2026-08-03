@@ -349,12 +349,12 @@ function MyMods({ config }) {
               width: '64px',
               height: '64px',
               borderRadius: '50%',
-              background: 'rgba(139, 92, 246, 0.1)',
+              background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
               color: 'var(--color-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 20px rgba(139, 92, 246, 0.2)'
+              boxShadow: '0 0 20px color-mix(in srgb, var(--color-primary) 20%, transparent)'
             }}
           >
             <UploadCloud size={32} className="animate-bounce" />

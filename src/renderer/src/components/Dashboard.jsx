@@ -7,6 +7,8 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
 
   const [releaseNotes, setReleaseNotes] = useState(null);
   const [loadingNotes, setLoadingNotes] = useState(true);
+  const [launcherNotes, setLauncherNotes] = useState(null);
+  const [loadingLauncherNotes, setLoadingLauncherNotes] = useState(true);
   const [packVersions, setPackVersions] = useState([]);
   const [isVersionDropdownOpen, setIsVersionDropdownOpen] = useState(false);
 
@@ -31,12 +33,24 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
         const notes = await window.api.getLatestReleaseNotes();
         setReleaseNotes(notes);
       } catch (err) {
-        console.error("Błąd podczas wczytywania listy zmian:", err);
+        console.error("Błąd podczas wczytywania listy zmian paczki:", err);
       } finally {
         setLoadingNotes(false);
       }
     }
     loadReleaseNotes();
+    
+    async function loadLauncherNotes() {
+      try {
+        const lNotes = await window.api.getLauncherReleaseNotes();
+        setLauncherNotes(lNotes);
+      } catch (err) {
+        console.error("Błąd podczas wczytywania listy zmian launchera:", err);
+      } finally {
+        setLoadingLauncherNotes(false);
+      }
+    }
+    loadLauncherNotes();
     
     async function loadPackVersions() {
       try {
@@ -136,8 +150,8 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
           />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="badge badge-cyan">Ciapongi RP</span>
-              <span className="badge badge-violet">Fabric {config.loaderVersion}</span>
+              <span className="badge badge-secondary">Ciapongi RP</span>
+              <span className="badge badge-primary">Fabric {config.loaderVersion}</span>
             </div>
             <h1 style={{ fontSize: '28px', fontWeight: '800', textShadow: '0 2px 10px rgba(0,0,0,0.5)', marginTop: '4px' }}>
               Witaj na serwerze, {config.nickname}!
@@ -167,7 +181,7 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
                 fontSize: '18px',
                 letterSpacing: '0.5px',
                 gap: '12px',
-                boxShadow: isWorking ? 'none' : '0 8px 30px rgba(139, 92, 246, 0.4)',
+                boxShadow: isWorking ? 'none' : '0 8px 30px color-mix(in srgb, var(--color-primary) 40%, transparent)',
                 transition: 'all 0.3s ease'
               }}
             >
@@ -234,11 +248,11 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
           </div>
         </div>
 
-        {/* Karta z listą zmian (Release Notes) */}
+        {/* Karta z listą zmian paczki (Release Notes) */}
         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px' }}>
           <h3 style={{ fontSize: '15px', fontWeight: '800', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Co nowego w tej wersji?</span>
-            <span style={{ fontSize: '11px', background: 'rgba(139, 92, 246, 0.15)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '8px' }}>
+            <span>Co nowego w paczce?</span>
+            <span style={{ fontSize: '11px', background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '8px' }}>
               {releaseNotes ? releaseNotes.tag_name : 'Wczytywanie...'}
             </span>
           </h3>
@@ -253,7 +267,31 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
             </div>
           ) : (
             <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '10px 0' }}>
-              Brak dostępnych informacji o zmianach.
+              Brak dostępnych informacji o zmianach w paczce.
+            </div>
+          )}
+        </div>
+
+        {/* Karta z listą zmian launchera */}
+        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: '800', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Ostatnie zmiany w launcherze</span>
+            <span style={{ fontSize: '11px', background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '8px' }}>
+              {launcherNotes ? launcherNotes.tag_name : 'Wczytywanie...'}
+            </span>
+          </h3>
+          {loadingLauncherNotes ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+              <RefreshCw className="animate-spin" size={18} style={{ color: 'var(--color-primary)' }} />
+            </div>
+          ) : launcherNotes ? (
+            <div className="custom-scroll" style={{ maxHeight: '180px', overflowY: 'auto', textAlign: 'left', fontSize: '13px', lineHeight: '1.6', color: 'var(--text-muted)', whiteSpace: 'pre-wrap', paddingRight: '6px' }}>
+              <h4 style={{ color: 'var(--text-main)', fontWeight: '700', marginBottom: '8px', fontSize: '14px' }}>{launcherNotes.name}</h4>
+              {launcherNotes.body}
+            </div>
+          ) : (
+            <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '10px 0' }}>
+              Brak dostępnych informacji o zmianach launchera.
             </div>
           )}
         </div>
@@ -418,7 +456,7 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
           </div>
 
           <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
               <Layers size={22} style={{ transform: 'rotate(90deg)' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>

@@ -983,6 +983,30 @@ ipcMain.handle('get-latest-release-notes', async () => {
   return null;
 });
 
+
+ipcMain.handle('get-launcher-release-notes', async () => {
+  const config = readConfig();
+  const headers = { 'User-Agent': 'Ciapongi-RP-Launcher' };
+  if (config.githubToken) {
+    headers['Authorization'] = "token ${config.githubToken}";
+  }
+  const apiURL = 'https://api.github.com/repos/PotatoePotatoePotatoe/Ciapongi-launcher/releases/latest';
+  try {
+    const res = await axios.get(apiURL, { headers });
+    if (res.data) {
+      const latest = res.data;
+      return {
+        tag_name: latest.tag_name,
+        name: latest.name || latest.tag_name,
+        body: latest.body || 'Brak opisu dla tej wersji.',
+        published_at: latest.published_at
+      };
+    }
+  } catch (err) {
+    logToFile('Nie udalo sie pobrac historii zmian launchera: ' + err.message);
+  }
+  return null;
+});
 function getMainPackModIds() {
   const config = readConfig();
   const gameDir = config.gameDir;
