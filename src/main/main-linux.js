@@ -1085,6 +1085,10 @@ ipcMain.handle('get-latest-release-notes', async () => {
 });
 
 
+ipcMain.handle('get-launcher-version', () => {
+  return app.getVersion();
+});
+
 ipcMain.handle('get-launcher-release-notes', async () => {
   const config = readConfig();
   const headers = { 'User-Agent': 'Ciapongi-RP-Launcher' };

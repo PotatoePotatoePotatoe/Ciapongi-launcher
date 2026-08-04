@@ -1,7 +1,7 @@
 {
   "name": "ciapongi-rp-launcher",
-  "version": "1.0.8",
-  "description": "Dedykowany launcher Minecraft dla Ciapongi-RP",
+  "version": "1.0.9",
+  "description": "Oficjalny launcher dla paczki Ciapongi-RP",
   "author": "Ciapongi-RP",
   "main": "src/main/main.js",
   "type": "commonjs",

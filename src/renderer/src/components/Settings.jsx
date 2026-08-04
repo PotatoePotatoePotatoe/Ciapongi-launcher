@@ -38,6 +38,7 @@ function Settings({ config, onSave }) {
   const [updaterStatus, setUpdaterStatus] = useState('idle');
   const [updaterProgress, setUpdaterProgress] = useState(0);
   const [updaterMessage, setUpdaterMessage] = useState('');
+  const [launcherVersion, setLauncherVersion] = useState('...');
 
   const installRecommendedModsPackage = async () => {
     setInstallingMods(true);
@@ -141,6 +142,10 @@ function Settings({ config, onSave }) {
       }
     }
     fetchSystemSpecs();
+    
+    if (window.api && window.api.getLauncherVersion) {
+      window.api.getLauncherVersion().then(v => setLauncherVersion(v)).catch(console.error);
+    }
   }, []);
 
   // Generuje i aplikuje CSS vars dla wlasnego koloru — podglad na zywo
@@ -345,6 +350,7 @@ function Settings({ config, onSave }) {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <h4 style={{ fontSize: '15px', fontWeight: '700', margin: 0, color: 'var(--text-main)' }}>Aktualizacje Launchera</h4>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                      Obecna wersja: <strong style={{ color: 'var(--text-main)' }}>v{launcherVersion}</strong><br/>
                       Sprawdź, czy dostępna jest nowa wersja launchera.<br/>
                       Zawsze możesz ręcznie sprawdzić najnowsze wydanie.
                     </span>

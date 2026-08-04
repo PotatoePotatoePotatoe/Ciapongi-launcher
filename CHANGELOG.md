@@ -2,6 +2,16 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.0.9]
+### Dodano (Added)
+- **Wyświetlanie wersji:** Dodano informację o obecnej wersji launchera w zakładce Ustawienia.
+### Poprawiono (Fixed)
+- **Błąd aktualizacji:** Naprawiono krytyczny błąd (deadlock) w `github-updater.js`, który powodował zacinanie się instalacji aktualizacji w tle na procesie launchera (wywołanie przez `spawn`).
+
+## [1.0.8]
+### Dodano (Added)
+- **Wydanie na system Linux:** Dostosowano system kompilacji, aby wspierać systemy z rodziny Linux (`.tar.gz`). Dodano niezbędne skrypty i uprawnienia (`chmod +x`).
+
 ## [1.0.7]
 ### Dodano (Added)
 - **Własne kolory interfejsu (Custom Theme):** Dodano nową funkcję w ustawieniach wyglądu pozwalającą graczom na swobodny wybór własnych kolorów (głównego akcentu i dodatkowego do gradientów) za pomocą wbudowanej palety barw. Zmiany są widoczne w czasie rzeczywistym przed zapisem.

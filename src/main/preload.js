@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld('api', {
   checkForLauncherUpdates: () => ipcRenderer.invoke('check-for-launcher-updates'),
   installLauncherUpdate: () => ipcRenderer.invoke('install-launcher-update'),
   getLauncherReleaseNotes: () => ipcRenderer.invoke('get-launcher-release-notes'),
+  getLauncherVersion: () => ipcRenderer.invoke('get-launcher-version'),
   onLauncherUpdateEvent: (callback) => {
     const listener = (event, data) => callback(data);
     ipcRenderer.on('launcher-update-event', listener);
