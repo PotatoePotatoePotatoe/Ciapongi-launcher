@@ -6,6 +6,13 @@ Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane 
 ### Dodano (Added)
 - **Własne kolory interfejsu (Custom Theme):** Dodano nową funkcję w ustawieniach wyglądu pozwalającą graczom na swobodny wybór własnych kolorów (głównego akcentu i dodatkowego do gradientów) za pomocą wbudowanej palety barw. Zmiany są widoczne w czasie rzeczywistym przed zapisem.
 - **Ostatnie zmiany w launcherze:** Na głównym ekranie, bezpośrednio pod informacjami o aktualizacjach paczki z modami, znajduje się teraz nowa sekcja z changelogiem pobierana na żywo z platformy GitHub, dotycząca aktualizacji i nowości samego launchera.
+- fix(ui): przywrócenie systemowego przyciągania okien (Aero Snap)
+
+- Zmieniono `transparent: true` na `false` w plikach main (Win & Linux),
+  co naprawia systemowe blokowanie zarządzania oknami (tzw. Aero Snap). 
+- Użytkownicy mogą od teraz bez problemu przyciągać aplikację do 
+  krawędzi i rogów ekranu (np. by podzielić ekran z inną aplikacją).
+
 
 ### Poprawiono (Fixed)
 - **Kolory podświetleń (Hover/Shadows):** Usunięto sztywno zapisane, fioletowe cienie i tła pojawiające się m.in. wokół awatara gracza oraz zaznaczonych opcji na pasku nawigacyjnym. Teraz każdy z takich elementów automatycznie adaptuje się i świeci barwą aktualnie używanego motywu (np. czerwony w trybie Crimson).
