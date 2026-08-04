@@ -191,9 +191,11 @@ function installUpdate(filePath, logToFile) {
   logToFile('[GithubUpdater] Installing update: ' + file);
   if (process.platform === 'win32') {
     const { spawn } = require('child_process');
-    const child = spawn(file, ['/S'], { detached: true, stdio: 'ignore' });
+    // Dodajemy opóźnienie 1-2 sekundy, aby launcher zdążył całkowicie się zamknąć i zwolnić pliki.
+    const command = `timeout /T 2 /NOBREAK > nul & "${file}" /S`;
+    const child = spawn('cmd.exe', ['/c', command], { detached: true, stdio: 'ignore', windowsHide: true });
     child.unref();
-    app.quit();
+    app.exit(0);
   } else {
     shell.showItemInFolder(file);
   }

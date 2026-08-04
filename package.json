@@ -1,6 +1,6 @@
 {
   "name": "ciapongi-rp-launcher",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "Oficjalny launcher dla paczki Ciapongi-RP",
   "author": "Ciapongi-RP",
   "main": "src/main/main.js",

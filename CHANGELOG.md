@@ -1,6 +1,10 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.1.0]
+### Poprawiono (Fixed)
+- **Instalator w tle:** Dodano wymuszone opóźnienie wywołania instalatora, pozwalając procesowi głównego launchera na poprawne zamknięcie się, co eliminuje problem, gdzie instalator "po cichu" umierał przy próbie nadpisania otwartych plików.
+
 ## [1.0.9]
 ### Dodano (Added)
 Wyświetlanie wersji: Dodano informację o obecnej wersji launchera w zakładce Ustawienia.
