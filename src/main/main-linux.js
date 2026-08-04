@@ -8,6 +8,18 @@ const { Client } = require('minecraft-launcher-core');
 const { pathToFileURL } = require('url');
 const githubUpdater = require('./github-updater');
 const { Auth } = require('msmc');
+const crypto = require('crypto');
+
+function calculateHash(filePath) {
+  return new Promise((resolve) => {
+    if (!fs.existsSync(filePath)) return resolve(null);
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', () => resolve(null));
+    stream.on('data', chunk => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
+}
 
 // Główna konfiguracja i okno
 let mainWindow = null;
@@ -822,12 +834,14 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       mainWindow.webContents.send('status-message', `Wykryto nową wersję na serwerze: ${releaseInfo.name || releaseInfo.tag_name}. Przygotowywanie aktualizacji...`);
     }
 
+
     let downloadUrl = null;
     const assetZip = releaseInfo.assets.find(a => a.name.endsWith('.zip'));
+    const manifestAsset = releaseInfo.assets.find(a => a.name === 'manifest.json');
 
     if (assetZip) {
       downloadUrl = assetZip.browser_download_url;
-      mainWindow.webContents.send('status-message', `Pobieranie najnowszej paczki modyfikacji...`);
+      mainWindow.webContents.send('status-message', `Sprawdzanie wersji paczki...`);
     } else {
       downloadUrl = releaseInfo.zipball_url;
       mainWindow.webContents.send('status-message', 'Pobieranie plików paczki...');
@@ -837,59 +851,17 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       throw new Error("Nie znaleziono pliku do pobrania w najnowszym wydaniu.");
     }
 
-    const zipPath = path.join(tempDir, 'pack.zip');
-    await downloadFile(downloadUrl, zipPath, (progressData) => {
-      mainWindow.webContents.send('pack-sync-progress', {
-        status: 'downloading',
-        progress: progressData.progress,
-        transferred: progressData.transferred,
-        total: progressData.total,
-        speed: progressData.speed
-      });
-    }, headers);
-
-    mainWindow.webContents.send('status-message', 'Instalowanie modów i konfiguracji w folderze gry...');
-    mainWindow.webContents.send('pack-sync-progress', { status: 'extracting', progress: 50 });
-
-    const extractPath = path.join(tempDir, 'extracted');
-    if (fs.existsSync(extractPath)) {
-      fs.rmSync(extractPath, { recursive: true, force: true });
-    }
-    fs.mkdirSync(extractPath, { recursive: true });
-
-    const zip = new AdmZip(zipPath);
-    zip.extractAllTo(extractPath, true);
-
-    const packRoot = findPackRoot(extractPath);
-    if (!packRoot) {
-      throw new Error("W archiwum ZIP nie odnaleziono katalogu z modami (mods) ani konfiguracją (config).");
-    }
-
-    const innerConfigPath = path.join(packRoot, 'launcher-config.json');
-    if (fs.existsSync(innerConfigPath)) {
+    // --- Pobieranie manifestu ---
+    let remoteManifest = null;
+    if (manifestAsset) {
       try {
-        const innerConfig = JSON.parse(fs.readFileSync(innerConfigPath, 'utf8'));
-        let updated = false;
-        if (innerConfig.minecraftVersion && innerConfig.minecraftVersion !== config.minecraftVersion) {
-          config.minecraftVersion = innerConfig.minecraftVersion;
-          updated = true;
-        }
-        if (innerConfig.loaderVersion && innerConfig.loaderVersion !== config.loaderVersion) {
-          config.loaderVersion = innerConfig.loaderVersion;
-          updated = true;
-        }
-        if (innerConfig.loader && innerConfig.loader !== config.loader) {
-          config.loader = innerConfig.loader;
-          updated = true;
-        }
-        if (updated) {
-          writeConfig(config);
-        }
+        remoteManifest = (await axios.get(manifestAsset.browser_download_url, { responseType: 'json' })).data;
       } catch (e) {
-        console.error("Błąd podczas czytania launcher-config.json z paczki:", e);
+        console.error("Błąd pobierania manifest.json:", e.message);
       }
     }
 
+    // --- Znajdywanie wyłączonych modów (ZACHOWANIE FUNKCJI Z OBECNEJ WERSJI) ---
     const disabledPackFiles = new Set();
     const modsDir = path.join(gameDir, 'mods');
     const rpDir = path.join(gameDir, 'resourcepacks');
@@ -905,28 +877,151 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       });
     }
 
-    mainWindow.webContents.send('status-message', 'Usuwanie niepotrzebnych lub starych plików...');
+    let filesToExtract = [];
+    let needsFullExtract = true;
+    let oldFilesList = [];
+
+    // Czyszczenie i przygotowanie do Delta Updates
     if (fs.existsSync(manifestPath)) {
       try {
-        const oldFiles = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-        for (const file of oldFiles) {
-          const fullPath = path.join(gameDir, file);
-          const disabledPath = fullPath + '.disabled';
-          if (fs.existsSync(fullPath)) {
-            fs.rmSync(fullPath, { force: true });
-          }
-          if (fs.existsSync(disabledPath)) {
-            fs.rmSync(disabledPath, { force: true });
-          }
-        }
-      } catch (err) {
-        console.error("Błąd czyszczenia starej paczki:", err);
+        oldFilesList = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      } catch (e) {
+        console.error("Błąd odczytu lokalnego manifestu:", e);
       }
     }
 
-    const copiedFiles = [];
-    copyDirRecursive(packRoot, gameDir, copiedFiles, gameDir);
+    if (remoteManifest && remoteManifest.files && Array.isArray(remoteManifest.files)) {
+      needsFullExtract = false;
+      mainWindow.webContents.send('status-message', 'Weryfikacja plików paczki...');
+      
+      // Kasowanie plików, których nie ma w nowym manifeście (downgrade / mod usunięty przez twórcę)
+      const remotePaths = new Set(remoteManifest.files.map(f => f.path.replace(/\\/g, '/')));
+      for (const oldFile of oldFilesList) {
+        const oldFileRel = oldFile.replace(/\\/g, '/');
+        if (!remotePaths.has(oldFileRel)) {
+          // Pliku już nie ma w paczce. Kasujemy, jeśli to plik z manifestu.
+          const fullPath = path.join(gameDir, oldFileRel);
+          if (fs.existsSync(fullPath)) fs.rmSync(fullPath, { force: true });
+          if (fs.existsSync(fullPath + '.disabled')) fs.rmSync(fullPath + '.disabled', { force: true });
+        }
+      }
 
+      // Weryfikacja każdego pliku z manifestu
+      let checked = 0;
+      for (const rf of remoteManifest.files) {
+        const rfPath = rf.path.replace(/\\/g, '/');
+        const fullPath = path.join(gameDir, rfPath);
+        const disabledPath = fullPath + '.disabled';
+        
+        let fileToHash = null;
+        if (fs.existsSync(fullPath)) fileToHash = fullPath;
+        else if (fs.existsSync(disabledPath)) fileToHash = disabledPath;
+        
+        if (fileToHash) {
+           const localHash = await calculateHash(fileToHash);
+           if (localHash !== rf.hash) {
+             filesToExtract.push(rfPath);
+           }
+        } else {
+           filesToExtract.push(rfPath);
+        }
+        
+        checked++;
+        if (checked % 10 === 0) {
+          mainWindow.webContents.send('pack-sync-progress', { status: 'verifying', progress: Math.floor((checked / remoteManifest.files.length) * 100) });
+        }
+      }
+    } else {
+       // Brak manifestu -> Stare zachowanie
+       for (const file of oldFilesList) {
+          const fullPath = path.join(gameDir, file);
+          if (fs.existsSync(fullPath)) fs.rmSync(fullPath, { force: true });
+          if (fs.existsSync(fullPath + '.disabled')) fs.rmSync(fullPath + '.disabled', { force: true });
+       }
+    }
+
+    const copiedFiles = [];
+    
+    if (needsFullExtract || filesToExtract.length > 0) {
+      mainWindow.webContents.send('status-message', `Pobieranie najnowszej paczki modyfikacji...`);
+      mainWindow.webContents.send('pack-sync-progress', { status: 'downloading', progress: 0 });
+
+      const zipPath = path.join(tempDir, 'pack.zip');
+      const writer = fs.createWriteStream(zipPath);
+
+      const response = await axios({
+        url: downloadUrl,
+        method: 'GET',
+        responseType: 'stream',
+        headers
+      });
+
+      const totalLength = response.headers['content-length'];
+      let downloaded = 0;
+
+      response.data.on('data', (chunk) => {
+        downloaded += chunk.length;
+        if (totalLength) {
+          const progress = Math.round((downloaded / totalLength) * 100);
+          mainWindow.webContents.send('pack-sync-progress', { status: 'downloading', progress, speed: '0 MB/s' });
+        }
+      });
+
+      response.data.pipe(writer);
+
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+
+      mainWindow.webContents.send('status-message', 'Wypakowywanie plików...');
+      mainWindow.webContents.send('pack-sync-progress', { status: 'extracting', progress: 50 });
+
+      const extractPath = path.join(tempDir, 'extracted');
+      if (fs.existsSync(extractPath)) fs.rmSync(extractPath, { recursive: true, force: true });
+      fs.mkdirSync(extractPath, { recursive: true });
+
+      const zip = new AdmZip(zipPath);
+      zip.extractAllTo(extractPath, true);
+
+      const packRoot = findPackRoot(extractPath);
+      if (!packRoot) throw new Error("W archiwum ZIP nie odnaleziono katalogu z modami (mods) ani konfiguracją (config).");
+
+      // Konfiguracja launchera
+      const innerConfigPath = path.join(packRoot, 'launcher-config.json');
+      if (fs.existsSync(innerConfigPath)) {
+        try {
+          const innerConfig = JSON.parse(fs.readFileSync(innerConfigPath, 'utf8'));
+          let updated = false;
+          if (innerConfig.minecraftVersion && innerConfig.minecraftVersion !== config.minecraftVersion) { config.minecraftVersion = innerConfig.minecraftVersion; updated = true; }
+          if (innerConfig.loaderVersion && innerConfig.loaderVersion !== config.loaderVersion) { config.loaderVersion = innerConfig.loaderVersion; updated = true; }
+          if (innerConfig.loader && innerConfig.loader !== config.loader) { config.loader = innerConfig.loader; updated = true; }
+          if (updated) writeConfig(config);
+        } catch (e) { console.error("Błąd configu:", e); }
+      }
+
+      if (needsFullExtract) {
+        copyDirRecursive(packRoot, gameDir, copiedFiles, gameDir);
+      } else {
+        // Pseudo-Delta: Kopiujemy tylko brakujące / różniące się pliki, ale z pamięcią starych ok
+        for (const rfPath of filesToExtract) {
+          const srcPath = path.join(packRoot, rfPath);
+          const destPath = path.join(gameDir, rfPath);
+          if (fs.existsSync(srcPath)) {
+            const destDir = path.dirname(destPath);
+            if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+            fs.copyFileSync(srcPath, destPath);
+          }
+        }
+        // Uzupełniamy skopiowane pliki o te, które przeszły weryfikację
+        remoteManifest.files.forEach(rf => copiedFiles.push(rf.path.replace(/\\/g, '/')));
+      }
+    } else {
+      // Wszystko aktualne
+      copiedFiles.push(...remoteManifest.files.map(rf => rf.path.replace(/\\/g, '/')));
+    }
+
+    // Odtwarzanie stanu modów wyłączonych (.disabled) - Funkcja z obecnej wersji zachowana
     if (disabledPackFiles.size > 0) {
       for (const fileRel of copiedFiles) {
         const fullPath = path.join(gameDir, fileRel);
@@ -936,7 +1031,6 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
           try {
             if (fs.existsSync(disabledPath)) fs.rmSync(disabledPath, { force: true });
             fs.renameSync(fullPath, disabledPath);
-            logToFile(`[SYSTEM] Zachowano wyłączony stan dla pliku paczki: ${baseName}`);
           } catch (e) {
             console.error(`Błąd zachowywania wyłączonego stanu pliku ${baseName}:`, e);
           }
@@ -945,8 +1039,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
     }
 
     fs.writeFileSync(manifestPath, JSON.stringify(copiedFiles, null, 2), 'utf8');
-
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
 
     config.packVersion = latestVersion;
     writeConfig(config);
@@ -954,6 +1047,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
     mainWindow.webContents.send('status-message', 'Wszystko gotowe! Paczka zaktualizowana.');
     mainWindow.webContents.send('pack-sync-progress', { status: 'idle', progress: 100 });
     return { success: true };
+
 
   } catch (err) {
     console.error("Błąd synchronizacji paczki:", err);

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * github-updater.js
  * Niezalezny od electron-updater modul aktualizatora.
  * Nie wymaga pliku latest.yml — odpytuje bezposrednio GitHub API.
@@ -190,7 +190,9 @@ function installUpdate(filePath, logToFile) {
   }
   logToFile('[GithubUpdater] Installing update: ' + file);
   if (process.platform === 'win32') {
-    execFile(file, ['/S'], { detached: true, stdio: 'ignore' });
+    const { spawn } = require('child_process');
+    const child = spawn(file, ['/S'], { detached: true, stdio: 'ignore' });
+    child.unref();
     app.quit();
   } else {
     shell.showItemInFolder(file);
