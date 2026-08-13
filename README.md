@@ -49,7 +49,7 @@ Projekt został zbudowany przez entuzjastę dla graczy.
 
 Stworzone ze ❤️ dla serwera **CiapongiRP**.
 
-- **Serwer:** [Szablix](https://github.com/KrolestwoSZABLIXa)
+- **Serwer:** [SZABLIX](https://github.com/KrolestwoSZABLIXa)
 - **Aplikacja:** [PotatoePotatoePotatoe](https://github.com/PotatoePotatoePotatoe)
 
 ---
