@@ -1108,22 +1108,36 @@ ipcMain.handle('get-launcher-release-notes', async () => {
   const config = readConfig();
   const headers = { 'User-Agent': 'Ciapongi-RP-Launcher' };
   if (config.githubToken) {
-    headers['Authorization'] = "token ${config.githubToken}";
+    headers['Authorization'] = `token ${config.githubToken}`;
   }
-  const apiURL = 'https://api.github.com/repos/PotatoePotatoePotatoe/Ciapongi-launcher/releases/latest';
+  // Pobierz pełny CHANGELOG.md z raw GitHub — zawiera całą historię zmian
+  const rawUrl = 'https://raw.githubusercontent.com/PotatoePotatoePotatoe/Ciapongi-launcher/main/CHANGELOG.md';
   try {
-    const res = await axios.get(apiURL, { headers });
+    const res = await axios.get(rawUrl, { headers, responseType: 'text' });
     if (res.data) {
-      const latest = res.data;
       return {
-        tag_name: latest.tag_name,
-        name: latest.name || latest.tag_name,
-        body: latest.body || 'Brak opisu dla tej wersji.',
-        published_at: latest.published_at
+        type: 'full_changelog',
+        content: res.data
       };
     }
   } catch (err) {
-    logToFile('Nie udalo sie pobrac historii zmian launchera: ' + err.message);
+    logToFile('Nie udalo sie pobrac CHANGELOG.md: ' + err.message);
+    // Fallback: pobierz opisy z GitHub releases API (ostatnie 10)
+    try {
+      const apiURL = 'https://api.github.com/repos/PotatoePotatoePotatoe/Ciapongi-launcher/releases?per_page=10';
+      const apiRes = await axios.get(apiURL, { headers });
+      if (apiRes.data && apiRes.data.length > 0) {
+        const combined = apiRes.data
+          .map(r => `## ${r.name || r.tag_name}\n${r.body || ''}`.trim())
+          .join('\n\n---\n\n');
+        return {
+          type: 'full_changelog',
+          content: combined
+        };
+      }
+    } catch (fallbackErr) {
+      logToFile('Fallback releases API rowniez nieudany: ' + fallbackErr.message);
+    }
   }
   return null;
 });

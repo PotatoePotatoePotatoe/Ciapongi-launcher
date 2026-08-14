@@ -277,17 +277,56 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
           <h3 style={{ fontSize: '15px', fontWeight: '800', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Ostatnie zmiany w launcherze</span>
             <span style={{ fontSize: '11px', background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '8px' }}>
-              {launcherNotes ? launcherNotes.tag_name : 'Wczytywanie...'}
+              {launcherNotes ? 'Pełna historia' : 'Wczytywanie...'}
             </span>
           </h3>
           {loadingLauncherNotes ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
               <RefreshCw className="animate-spin" size={18} style={{ color: 'var(--color-primary)' }} />
             </div>
-          ) : launcherNotes ? (
-            <div className="custom-scroll" style={{ maxHeight: '180px', overflowY: 'auto', textAlign: 'left', fontSize: '13px', lineHeight: '1.6', color: 'var(--text-muted)', whiteSpace: 'pre-wrap', paddingRight: '6px' }}>
-              <h4 style={{ color: 'var(--text-main)', fontWeight: '700', marginBottom: '8px', fontSize: '14px' }}>{launcherNotes.name}</h4>
-              {launcherNotes.body}
+          ) : launcherNotes && launcherNotes.type === 'full_changelog' ? (
+            <div className="custom-scroll" style={{ maxHeight: '320px', overflowY: 'auto', textAlign: 'left', fontSize: '13px', lineHeight: '1.7', color: 'var(--text-muted)', paddingRight: '6px' }}>
+              {launcherNotes.content
+                .split('\n')
+                .filter(line => line.trim() !== '' || true)
+                .map((line, idx) => {
+                  if (line.startsWith('## ')) {
+                    return (
+                      <div key={idx} style={{ fontWeight: '800', fontSize: '14px', color: 'var(--text-main)', marginTop: idx === 0 ? '0' : '18px', marginBottom: '6px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>
+                        {line.replace(/^## /, '')}
+                      </div>
+                    );
+                  }
+                  if (line.startsWith('### ')) {
+                    const label = line.replace(/^### /, '');
+                    const isAdded = label.toLowerCase().includes('dodano') || label.toLowerCase().includes('added');
+                    const isFixed = label.toLowerCase().includes('poprawiono') || label.toLowerCase().includes('fixed');
+                    const isChanged = label.toLowerCase().includes('zmieniono') || label.toLowerCase().includes('changed');
+                    const color = isAdded ? '#10b981' : isFixed ? '#f59e0b' : isChanged ? '#60a5fa' : 'var(--color-primary)';
+                    return (
+                      <div key={idx} style={{ fontWeight: '700', fontSize: '12px', color, marginTop: '10px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                        {label}
+                      </div>
+                    );
+                  }
+                  if (line.startsWith('- ') || line.startsWith('* ')) {
+                    return (
+                      <div key={idx} style={{ display: 'flex', gap: '6px', paddingLeft: '4px', marginBottom: '3px' }}>
+                        <span style={{ color: 'var(--color-primary)', flexShrink: 0, marginTop: '1px' }}>•</span>
+                        <span dangerouslySetInnerHTML={{ __html: line.replace(/^[-*] /, '').replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-main)">$1</strong>').replace(/`(.+?)`/g, '<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:3px;font-size:11px">$1</code>') }} />
+                      </div>
+                    );
+                  }
+                  if (line.trim() === '' || line.startsWith('---')) {
+                    return <div key={idx} style={{ height: '4px' }} />;
+                  }
+                  return (
+                    <div key={idx} style={{ color: 'var(--text-muted)', paddingLeft: '4px', marginBottom: '2px' }}>
+                      {line}
+                    </div>
+                  );
+                })
+              }
             </div>
           ) : (
             <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '10px 0' }}>

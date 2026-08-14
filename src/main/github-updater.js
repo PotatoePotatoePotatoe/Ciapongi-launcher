@@ -192,7 +192,8 @@ function installUpdate(filePath, logToFile) {
   if (process.platform === 'win32') {
     const { spawn } = require('child_process');
     // Dodajemy opóźnienie 1-2 sekundy, aby launcher zdążył całkowicie się zamknąć i zwolnić pliki.
-    const command = `timeout /T 2 /NOBREAK > nul & "${file}" /S`;
+    // Usunięto flagę /S, aby użytkownik widział instalator wizualnie
+    const command = `timeout /T 2 /NOBREAK > nul & "${file}"`;
     const child = spawn('cmd.exe', ['/c', command], { detached: true, stdio: 'ignore', windowsHide: true });
     child.unref();
     app.exit(0);
