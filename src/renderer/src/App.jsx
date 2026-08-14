@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { 
-  Layout, 
-  Settings as SettingsIcon, 
-  Compass, 
-  FolderHeart, 
-  Terminal, 
-  Minus, 
-  Square, 
-  X, 
+import {
+  Layout,
+  Settings as SettingsIcon,
+  Compass,
+  FolderHeart,
+  Terminal,
+  Minus,
+  Square,
+  X,
   RefreshCw,
   Camera,
   ChevronDown
@@ -15,11 +15,11 @@ import {
 import { THEMES, DEFAULT_THEME } from './themes';
 // === OPTYMALIZACJA LAUNCHERA: lazy loading kart — każdy tab ładuje się dopiero przy pierwszym kliknięciu ===
 // Na słabym PC skraca czas startowy launchera bo nie ładujemy wszystkich komponentów naraz
-const Dashboard       = lazy(() => import('./components/Dashboard'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
 const ModrinthBrowser = lazy(() => import('./components/ModrinthBrowser'));
-const MyMods          = lazy(() => import('./components/MyMods'));
-const Settings        = lazy(() => import('./components/Settings'));
-const Screenshots     = lazy(() => import('./components/Screenshots'));
+const MyMods = lazy(() => import('./components/MyMods'));
+const Settings = lazy(() => import('./components/Settings'));
+const Screenshots = lazy(() => import('./components/Screenshots'));
 // Te ładujemy od razu bo są małe i mogą być potrzebne zaraz
 import LogConsole from './components/LogConsole';
 import FirstLaunchModal from './components/FirstLaunchModal';
@@ -31,9 +31,9 @@ function applyTheme(themeId, config) {
   if (themeId === 'custom' && config?.customColors) {
     const { primary, secondary } = config.customColors;
     const hexToRgb = (hex) => ({
-      r: parseInt(hex.slice(1,3), 16),
-      g: parseInt(hex.slice(3,5), 16),
-      b: parseInt(hex.slice(5,7), 16),
+      r: parseInt(hex.slice(1, 3), 16),
+      g: parseInt(hex.slice(3, 5), 16),
+      b: parseInt(hex.slice(5, 7), 16),
     });
     const { r: pr, g: pg, b: pb } = hexToRgb(primary);
     const { r: sr, g: sg, b: sb } = hexToRgb(secondary);
@@ -242,7 +242,7 @@ function App() {
           onComplete={async (newConfig) => {
             setConfig(newConfig);
             // Auto-dodaj serwer po pierwszym uruchomieniu
-            try { await window.api.addServerToMinecraft(); } catch(e) {}
+            try { await window.api.addServerToMinecraft(); } catch (e) { }
           }}
         />
       )}

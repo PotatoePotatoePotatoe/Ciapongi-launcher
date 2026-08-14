@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Save, AlertCircle, FolderOpen, RefreshCw, Cpu, Sparkles, Palette, User, ChevronDown } from 'lucide-react';
 import { THEMES } from '../themes';
 
@@ -39,6 +39,9 @@ function Settings({ config, onSave }) {
   const [updaterProgress, setUpdaterProgress] = useState(0);
   const [updaterMessage, setUpdaterMessage] = useState('');
   const [launcherVersion, setLauncherVersion] = useState('...');
+  // Auto-zapis: isInit zapobiega zapisowi przy pierwszym renderze
+  const isInit = useRef(true);
+  const autoSaveTimer = useRef(null);
 
   const installRecommendedModsPackage = async () => {
     setInstallingMods(true);
@@ -109,7 +112,43 @@ function Settings({ config, onSave }) {
     setMicrosoftAuth(config.microsoftAuth || null);
     setTheme(config.theme || 'dark-violet');
     setCustomColors(config.customColors || { primary: '#8b5cf6', secondary: '#06b6d4' });
+    // Po zmianie config z zewnątrz resetujemy flagę init
+    isInit.current = true;
   }, [config]);
+
+  // === AUTO-ZAPIS: po każdej zmianie włączamy debounce 800ms ===
+  useEffect(() => {
+    if (isInit.current) {
+      isInit.current = false;
+      return;
+    }
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      onSave({
+        ...config,
+        nickname,
+        ram: parseInt(ram, 10),
+        githubToken,
+        gameDir,
+        javaPath,
+        minecraftVersion,
+        loaderVersion,
+        javaVersion,
+        potatoMode,
+        disableAutoUpdate,
+        autoUpdateLauncher,
+        jvmProfile,
+        loginType,
+        microsoftAuth,
+        theme,
+        customColors,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    }, 800);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nickname, ram, githubToken, gameDir, javaPath, minecraftVersion, loaderVersion, javaVersion, potatoMode, disableAutoUpdate, autoUpdateLauncher, jvmProfile, loginType, microsoftAuth, theme, customColors]);
 
   useEffect(() => {
     if (window.api && window.api.onLauncherUpdateEvent) {
@@ -172,6 +211,7 @@ function Settings({ config, onSave }) {
   };
 
   const handleSave = () => {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     onSave({
       ...config,
       nickname,
@@ -192,7 +232,7 @@ function Settings({ config, onSave }) {
       customColors,
     });
     setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setTimeout(() => setSaved(false), 2500);
   };
 
   const handleCheckLauncherUpdates = async () => {
@@ -730,11 +770,16 @@ function Settings({ config, onSave }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '24px', paddingBottom: '32px' }}>
           <button className="btn btn-primary" onClick={handleSave} style={{ gap: '8px', minWidth: '160px' }}>
             <Save size={16} />
-            Zapisz ustawienia
+            Zapisz teraz
           </button>
           {saved && (
-            <span className="fade-in" style={{ color: 'var(--color-success)', fontSize: '14px', fontWeight: '600' }}>
-              Ustawienia zostały zapisane!
+            <span className="fade-in" style={{ color: 'var(--color-success)', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              ✓ Zapisano automatycznie
+            </span>
+          )}
+          {!saved && (
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              Ustawienia zapisują się automatycznie po każdej zmianie
             </span>
           )}
         </div>

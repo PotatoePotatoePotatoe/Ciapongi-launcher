@@ -1,6 +1,15 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.1.2] - 2026-08-14
+### Poprawiono (Fixed)
+- **Krytyczny błąd JVM — flagi Akira (optimized_g1gc):** Usunięto błędną flagę `-XX:+MaxMetaspaceFreeRatio=10` (nieprawidłowy prefiks `+` zamiast `=`), która powodowała crash Javy przy starcie Minecrafta z profilem G1GC. Flagi `MinMetaspaceFreeRatio` i `MaxMetaspaceFreeRatio` zostały całkowicie usunięte ze wszystkich profili JVM (`ultra_potato`, `potato`, `optimized_g1gc`) — były niekompatybilne z nowszymi wersjami JDK i niepotrzebnie ograniczały GC.
+- **Domyślny folder instalacji:** Zmieniono lokalizację domyślnego katalogu gry z `AppData` na `Dokumenty\CiapongiRP\minecraft-instance`. Pliki paczki są teraz łatwo dostępne dla użytkownika bez zagłębiania się w ukryte foldery systemowe.
+
+### Dodano (Added)
+- **Automatyczny zapis ustawień:** Zakładka Ustawienia zapisuje zmiany automatycznie po 800ms od każdej modyfikacji (debounce). Nie trzeba już klikać „Zapisz ustawienia" po każdej zmianie — widoczne jest potwierdzenie „✓ Zapisano automatycznie". Przycisk „Zapisz teraz" pozostaje jako opcja ręcznego wymuszenia.
+- **Cache 24h dla sprawdzania paczki z GitHub:** Launcher nie odpytuje GitHub API przy każdym uruchomieniu. Jeśli paczka jest zainstalowana i sprawdzano ją w ciągu ostatnich 24h, launcher pomija wywołanie API i startuje natychmiast. Eliminuje to problem z brakiem dostępu do paczki po 5-10 crashach gry — pliki pozostają dostępne bez konieczności ponownego pobierania. Wymuszenie sprawdzenia jest możliwe przyciskiem „Sprawdź aktualizacje paczki".
+
 ## [1.1.0]
 ### Poprawiono (Fixed)
 - **Instalator w tle:** Dodano wymuszone opóźnienie wywołania instalatora, pozwalając procesowi głównego launchera na poprawne zamknięcie się, co eliminuje problem, gdzie instalator "po cichu" umierał przy próbie nadpisania otwartych plików.

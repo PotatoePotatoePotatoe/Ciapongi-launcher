@@ -30,7 +30,8 @@ const appBaseDir = process.env.PORTABLE_EXECUTABLE_DIR
   : (app.isPackaged ? app.getPath('userData') : app.getAppPath());
 
 const configPath = path.join(appBaseDir, 'launcher-config-local.json');
-const defaultGameDir = path.join(appBaseDir, 'minecraft-instance');
+// Domyślny folder gry: Dokumenty użytkownika (bardziej intuicyjne niż AppData)
+const defaultGameDir = path.join(app.getPath('documents'), 'CiapongiRP', 'minecraft-instance');
 const logPath = path.join(appBaseDir, 'launcher-latest.log');
 
 function logToFile(message) {
@@ -759,6 +760,9 @@ ipcMain.handle('get-pack-versions', async (event) => {
   }
 });
 
+// Cache sprawdzania paczki — nie odpytujemy GitHub częściej niż raz na 24h
+const PACK_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 godziny
+
 ipcMain.handle('sync-pack', async (event, force = false) => {
   const config = readConfig();
 
@@ -774,6 +778,20 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
     } else {
       mainWindow.webContents.send('status-message', 'Brak plików paczki modów na dysku. Wymuszanie pierwszeństwa pobrania pierwszej instalacji...');
       logToFile('[SYSTEM] Opcja disableAutoUpdate jest włączona, ale paczka nie istnieje na dysku. Pobieranie pierwszej instalacji...');
+    }
+  }
+
+  // Sprawdzenie cache 24h — jeśli paczka jest zainstalowana i sprawdzano niedawno, pomijamy API
+  if (!force) {
+    const isInstalled = isPackFullyInstalled(gameDir);
+    const lastCheck = config.lastPackGithubCheck || 0;
+    const timeSinceCheck = Date.now() - lastCheck;
+    if (isInstalled && timeSinceCheck < PACK_CHECK_INTERVAL_MS) {
+      const hoursLeft = Math.round((PACK_CHECK_INTERVAL_MS - timeSinceCheck) / 3600000);
+      logToFile(`[SYSTEM] Cache 24h aktywny — pomijam sprawdzanie GitHub (odświeżenie za ~${hoursLeft}h).`);
+      mainWindow.webContents.send('status-message', `Paczka jest gotowa (wersja ${config.packVersion || 'aktualna'})`);
+      mainWindow.webContents.send('pack-sync-progress', { status: 'idle', progress: 100 });
+      return { success: true, updated: false };
     }
   }
 
@@ -815,6 +833,9 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
     const isInstalled = isPackFullyInstalled(gameDir);
 
     if (!force && config.packVersion === latestVersion && isInstalled) {
+      // Zaktualizuj timestamp sprawdzania i zapisz
+      config.lastPackGithubCheck = Date.now();
+      writeConfig(config);
       mainWindow.webContents.send('status-message', `Paczka jest gotowa (wersja ${latestVersion})`);
       mainWindow.webContents.send('pack-sync-progress', { status: 'idle', progress: 100 });
       return { success: true, updated: false };
@@ -886,7 +907,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
     if (remoteManifest && remoteManifest.files && Array.isArray(remoteManifest.files)) {
       needsFullExtract = false;
       mainWindow.webContents.send('status-message', 'Weryfikacja plików paczki...');
-      
+
       // Kasowanie plików, których nie ma w nowym manifeście (downgrade / mod usunięty przez twórcę)
       const remotePaths = new Set(remoteManifest.files.map(f => f.path.replace(/\\/g, '/')));
       for (const oldFile of oldFilesList) {
@@ -905,36 +926,36 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
         const rfPath = rf.path.replace(/\\/g, '/');
         const fullPath = path.join(gameDir, rfPath);
         const disabledPath = fullPath + '.disabled';
-        
+
         let fileToHash = null;
         if (fs.existsSync(fullPath)) fileToHash = fullPath;
         else if (fs.existsSync(disabledPath)) fileToHash = disabledPath;
-        
+
         if (fileToHash) {
-           const localHash = await calculateHash(fileToHash);
-           if (localHash !== rf.hash) {
-             filesToExtract.push(rfPath);
-           }
+          const localHash = await calculateHash(fileToHash);
+          if (localHash !== rf.hash) {
+            filesToExtract.push(rfPath);
+          }
         } else {
-           filesToExtract.push(rfPath);
+          filesToExtract.push(rfPath);
         }
-        
+
         checked++;
         if (checked % 10 === 0) {
           mainWindow.webContents.send('pack-sync-progress', { status: 'verifying', progress: Math.floor((checked / remoteManifest.files.length) * 100) });
         }
       }
     } else {
-       // Brak manifestu -> Stare zachowanie
-       for (const file of oldFilesList) {
-          const fullPath = path.join(gameDir, file);
-          if (fs.existsSync(fullPath)) fs.rmSync(fullPath, { force: true });
-          if (fs.existsSync(fullPath + '.disabled')) fs.rmSync(fullPath + '.disabled', { force: true });
-       }
+      // Brak manifestu -> Stare zachowanie
+      for (const file of oldFilesList) {
+        const fullPath = path.join(gameDir, file);
+        if (fs.existsSync(fullPath)) fs.rmSync(fullPath, { force: true });
+        if (fs.existsSync(fullPath + '.disabled')) fs.rmSync(fullPath + '.disabled', { force: true });
+      }
     }
 
     const copiedFiles = [];
-    
+
     if (needsFullExtract || filesToExtract.length > 0) {
       mainWindow.webContents.send('status-message', `Pobieranie najnowszej paczki modyfikacji...`);
       mainWindow.webContents.send('pack-sync-progress', { status: 'downloading', progress: 0 });
@@ -1035,6 +1056,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
     if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
 
     config.packVersion = latestVersion;
+    config.lastPackGithubCheck = Date.now();
     writeConfig(config);
 
     mainWindow.webContents.send('status-message', 'Wszystko gotowe! Paczka zaktualizowana.');
@@ -2005,8 +2027,6 @@ ipcMain.handle('launch-game', async () => {
         "-XX:+DisableExplicitGC",
         "-XX:-AlwaysPreTouch",
         "-XX:+UseStringDeduplication",
-        "-XX:MinMetaspaceFreeRatio=5",
-        "-XX:MaxMetaspaceFreeRatio=10",
         "-XX:MaxDirectMemorySize=512m",
         "-Dsun.rmi.dgc.server.gcInterval=2147483646",
         "-Djava.awt.headless=false",
@@ -2025,8 +2045,6 @@ ipcMain.handle('launch-game', async () => {
         "-XX:+DisableExplicitGC",
         "-XX:+AlwaysPreTouch",
         "-XX:+UseStringDeduplication",
-        "-XX:MinMetaspaceFreeRatio=5",
-        "-XX:MaxMetaspaceFreeRatio=15",
         "-XX:MaxDirectMemorySize=1G",
         "-Dsun.rmi.dgc.server.gcInterval=2147483646"
       ];
@@ -2040,8 +2058,6 @@ ipcMain.handle('launch-game', async () => {
         "-XX:InitiatingHeapOccupancyPercent=15",
         "-XX:G1MixedGCLiveThresholdPercent=90",
         "-XX:G1HeapRegionSize=32M",
-        "-XX:MinMetaspaceFreeRatio=5",
-        "-XX:+MaxMetaspaceFreeRatio=10",
         "-XX:+ParallelRefProcEnabled",
         "-XX:+UseStringDeduplication",
         "-XX:+AlwaysPreTouch",
