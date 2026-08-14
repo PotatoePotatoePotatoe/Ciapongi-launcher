@@ -1,7 +1,7 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
-## [1.1.2] - 2026-08-14
+## [1.1.1] - 2026-08-14
 ### Poprawiono (Fixed)
 - **Krytyczny błąd JVM — flagi Akira (optimized_g1gc):** Usunięto błędną flagę `-XX:+MaxMetaspaceFreeRatio=10` (nieprawidłowy prefiks `+` zamiast `=`), która powodowała crash Javy przy starcie Minecrafta z profilem G1GC. Flagi `MinMetaspaceFreeRatio` i `MaxMetaspaceFreeRatio` zostały całkowicie usunięte ze wszystkich profili JVM (`ultra_potato`, `potato`, `optimized_g1gc`) — były niekompatybilne z nowszymi wersjami JDK i niepotrzebnie ograniczały GC.
 - **Domyślny folder instalacji:** Zmieniono lokalizację domyślnego katalogu gry z `AppData` na `Dokumenty\CiapongiRP\minecraft-instance`. Pliki paczki są teraz łatwo dostępne dla użytkownika bez zagłębiania się w ukryte foldery systemowe.
