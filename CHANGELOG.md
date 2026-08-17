@@ -1,6 +1,19 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.1.2] - 2026-08-17
+### Poprawiono (Fixed)
+- **Krytyczny błąd `extreme_zgc` — EMERGENCY allocator failure:** Naprawiono błąd powodujący crash renderowania chunków (`EMERGENCY: Tried to allocate N bytes but the allocator reports failure`). Przyczyną było statyczne ustawienie `-XX:SoftMaxHeapSize=8192m` niezależne od przydzielonego RAM — ZGC zbyt agresywnie zwalniał pamięć, nie pozostawiając miejsca na alokacje renderera. Wartość jest teraz dynamiczna: **80% przydzielonego RAM** (np. przy 10 GB → 8192m, przy 16 GB → 13107m). Dodano również `-XX:ZUncommitDelay=600` spowalniający oddawanie pamięci do systemu.
+- **Niespójne progi auto-doboru profilu JVM:** Ujednolicono logikę we wszystkich 3 miejscach (`readConfig`, funkcja startowania gry, przycisk rekomendacji w Ustawieniach). Poprzednio launcher w trybie `auto` przy starcie gry używał progu `≤6500 MB` dla profilu `potato` (zamiast `≤8500 MB`) i nigdy nie wybierał `extreme_zgc` nawet na maszynach z >16 GB RAM. Naprawiono.
+
+### Zmieniono (Changed)
+- **Pełne Aikar's Flags — profil `optimized_g1gc`:** Zaktualizowano flagi JVM do kompletnego zestawu Aikar's Flags zgodnego z oficjalną dokumentacją PaperMC. Poprzednie flagi były niekompletne (brakowało 8 flag). Dodano: `-XX:G1MaxNewSizePercent`, `-XX:G1HeapWastePercent=5`, `-XX:G1MixedGCCountTarget=4`, `-XX:G1RSetUpdatingPauseTimePercent=5`, `-XX:SurvivorRatio=32`, `-XX:+PerfDisableSharedMem`, `-XX:MaxTenuringThreshold=1`, `-Dusing.aikars.flags`, `-Daikars.new.flags=true`. Poprawiono `MaxGCPauseMillis` z `20` na `200` (wartość zgodna ze specyfikacją Aikara). `G1HeapRegionSize` dobierany dynamicznie: **8M** dla ≤12 GB RAM, **16M** dla >12 GB RAM.
+- **Aikar's Flags Lite — profil `potato`:** Zaktualizowano do pełnego zestawu Aikar's Lite z `ParallelRefProcEnabled`, `DisableExplicitGC`, `G1MaxNewSizePercent`, `G1HeapWastePercent`, `G1MixedGCCountTarget`, `G1RSetUpdatingPauseTimePercent`, `SurvivorRatio`, `MaxTenuringThreshold`, `PerfDisableSharedMem`.
+- **Profil `ultra_potato`:** Zaktualizowano flagi do spójnego wariantu Aikar's dla słabych PC. Usunięto niekompatybilne flagi (`-Dsun.rmi.dgc.server.gcInterval`, `-Djava.awt.headless`, `-Dfml.ignorePatchDiscrepancies`). Zmieniono `G1HeapRegionSize` z `8M` na `4M` (lepiej dopasowane do małych heapów).
+
+### Dodano (Added)
+- **Pole własnych flag JVM w Ustawieniach:** W zakładce Ustawień, pod selektorem profilu JVM, pojawiło się nowe pole tekstowe (`textarea`) umożliwiające wpisanie własnych flag JVM. Flagi te są doklejane **po** flagach wybranego profilu i zapisywane automatycznie. Pole obsługuje wieloliniowy tekst oraz spacje jako separatory flag.
+
 ## [1.1.1] - 2026-08-14
 ### Poprawiono (Fixed)
 - **Krytyczny błąd JVM — flagi Akira (optimized_g1gc):** Usunięto błędną flagę `-XX:+MaxMetaspaceFreeRatio=10` (nieprawidłowy prefiks `+` zamiast `=`), która powodowała crash Javy przy starcie Minecrafta z profilem G1GC. Flagi `MinMetaspaceFreeRatio` i `MaxMetaspaceFreeRatio` zostały całkowicie usunięte ze wszystkich profili JVM (`ultra_potato`, `potato`, `optimized_g1gc`) — były niekompatybilne z nowszymi wersjami JDK i niepotrzebnie ograniczały GC.

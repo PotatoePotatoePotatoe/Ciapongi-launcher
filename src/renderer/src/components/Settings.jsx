@@ -26,6 +26,7 @@ function Settings({ config, onSave }) {
   const [microsoftAuth, setMicrosoftAuth] = useState(config.microsoftAuth || null);
   const [theme, setTheme] = useState(config.theme || 'dark-violet');
   const [customColors, setCustomColors] = useState(config.customColors || { primary: '#8b5cf6', secondary: '#06b6d4' });
+  const [customJvmArgs, setCustomJvmArgs] = useState(config.customJvmArgs || '');
   const [systemRam, setSystemRam] = useState(16384);
   const [systemSpecs, setSystemSpecs] = useState({ cpu: 'Wyszukiwanie...', cores: 0, ram: 0, gpu: 'Nieznana' });
   const [saved, setSaved] = useState(false);
@@ -112,6 +113,7 @@ function Settings({ config, onSave }) {
     setMicrosoftAuth(config.microsoftAuth || null);
     setTheme(config.theme || 'dark-violet');
     setCustomColors(config.customColors || { primary: '#8b5cf6', secondary: '#06b6d4' });
+    setCustomJvmArgs(config.customJvmArgs || '');
     // Po zmianie config z zewnątrz resetujemy flagę init
     isInit.current = true;
   }, [config]);
@@ -142,13 +144,14 @@ function Settings({ config, onSave }) {
         microsoftAuth,
         theme,
         customColors,
+        customJvmArgs,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     }, 800);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nickname, ram, githubToken, gameDir, javaPath, minecraftVersion, loaderVersion, javaVersion, potatoMode, disableAutoUpdate, autoUpdateLauncher, jvmProfile, loginType, microsoftAuth, theme, customColors]);
+  }, [nickname, ram, githubToken, gameDir, javaPath, minecraftVersion, loaderVersion, javaVersion, potatoMode, disableAutoUpdate, autoUpdateLauncher, jvmProfile, loginType, microsoftAuth, theme, customColors, customJvmArgs]);
 
   useEffect(() => {
     if (window.api && window.api.onLauncherUpdateEvent) {
@@ -282,10 +285,10 @@ function Settings({ config, onSave }) {
   };
 
   const getRecommendations = (totalRamMb) => {
-    if (totalRamMb <= 4500) return { ramMb: 2048, ramGb: '2.0', profile: 'potato', profileName: 'Potato GC' };
-    if (totalRamMb <= 8500) return { ramMb: 4096, ramGb: '4.0', profile: 'potato', profileName: 'Potato GC' };
-    if (totalRamMb <= 12500) return { ramMb: 6144, ramGb: '6.0', profile: 'optimized_g1gc', profileName: 'Optimized G1GC' };
-    if (totalRamMb <= 16500) return { ramMb: 8192, ramGb: '8.0', profile: 'optimized_g1gc', profileName: 'Optimized G1GC' };
+    if (totalRamMb <= 4500) return { ramMb: 2048, ramGb: '2.0', profile: 'ultra_potato', profileName: 'Ultra Potato GC' };
+    if (totalRamMb <= 8500) return { ramMb: 4096, ramGb: '4.0', profile: 'potato', profileName: 'Aikar\'s Lite G1GC' };
+    if (totalRamMb <= 12500) return { ramMb: 6144, ramGb: '6.0', profile: 'optimized_g1gc', profileName: 'Aikar\'s Flags G1GC' };
+    if (totalRamMb <= 16500) return { ramMb: 8192, ramGb: '8.0', profile: 'optimized_g1gc', profileName: 'Aikar\'s Flags G1GC' };
     return { ramMb: 10240, ramGb: '10.0', profile: 'extreme_zgc', profileName: 'Extreme ZGC' };
   };
 
@@ -526,15 +529,44 @@ function Settings({ config, onSave }) {
                   onChange={(e) => setJvmProfile(e.target.value)}
                   style={{ width: '100%', height: '46px', background: 'rgba(25, 25, 35, 0.9)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', outline: 'none' }}
                 >
-                  <option value="auto">Automatyczny (Rekomendowany dla Twojego sprzętu)</option>
-                  <option value="none">Brak (Domyślne parametry Javy)</option>
-                  <option value="ultra_potato">⚠️ Ultra Potato (Ekstremalnie słabe PC, ≤4GB RAM)</option>
-                  <option value="potato">Słaby PC (Potato GC - najniższe zużycie RAM)</option>
-                  <option value="optimized_g1gc">Zoptymalizowany G1GC (Aikar's - stabilniejsze klatki, zalecany)</option>
-                  <option value="extreme_zgc">Ekstremalny ZGC (Najniższe opóźnienia, dla mocnych PC i Javy 17/21)</option>
+                  <option value="auto">🤖 Automatyczny (Rekomendowany — dobierany wg RAM)</option>
+                  <option value="none">⛔ Brak (Domyślne parametry Javy, brak optymalizacji)</option>
+                  <option value="ultra_potato">🥔 Ultra Potato — G1GC (≤4 GB RAM, mikro-oszczędność)</option>
+                  <option value="potato">🪨 Słaby PC — Aikar's Lite G1GC (4–8 GB RAM)</option>
+                  <option value="optimized_g1gc">⭐ Aikar's Flags G1GC (8–12 GB RAM, złoty standard)</option>
+                  <option value="extreme_zgc">🚀 Extreme ZGC (12+ GB RAM, Java 17/21, maks. płynność)</option>
                 </select>
+                <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5', marginTop: '4px' }}>
+                  <b>Aikar's Flags</b> to złoty standard optymalizacji GC dla Minecraft — eliminują mikroprzycięcia (stuttering). <b>ZGC</b> daje najniższe opóźnienia pauz GC, lecz wymaga więcej RAM (min. 10–12 GB przydzielone) i Javy 17 lub 21. <b>Profil dobierany jest wg przydzielonego RAM</b> oraz wersji Javy.
+                </span>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Własne flagi JVM (opcjonalne, doklejane po profilu)</label>
+                <textarea
+                  className="form-input"
+                  value={customJvmArgs}
+                  onChange={(e) => setCustomJvmArgs(e.target.value)}
+                  placeholder="np. -Dfml.readTimeout=90 -XX:+UseStringDeduplication"
+                  rows={3}
+                  spellCheck={false}
+                  style={{
+                    width: '100%',
+                    minHeight: '72px',
+                    resize: 'vertical',
+                    background: 'rgba(25, 25, 35, 0.9)',
+                    color: 'var(--text-main)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    outline: 'none',
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    padding: '10px 14px',
+                    lineHeight: '1.6'
+                  }}
+                />
                 <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5', paddingBottom: '4px', marginTop: '4px' }}>
-                  Zoptymalizowane argumenty uruchamiania Javy pomagają wyeliminować mikroprzycięcia (stuttering) spowodowane odśmiecaniem pamięci.
+                  Zaawansowane: własne flagi JVM wpisane tutaj zostaną dołączone <b>po</b> flagach wybranego profilu. Oddziel spacją lub nową linią. Zostaw puste, jeśli nie wiesz co tu wpisać.
                 </span>
               </div>
                 </div>

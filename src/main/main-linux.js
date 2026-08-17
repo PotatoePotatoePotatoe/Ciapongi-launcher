@@ -64,7 +64,8 @@ const DEFAULT_CONFIG = {
   autoUpdateLauncher: true,
   theme: "dark-violet",
   accounts: [],
-  activeAccountIndex: 0
+  activeAccountIndex: 0,
+  customJvmArgs: ""
 };
 
 function readConfig() {
@@ -2007,10 +2008,12 @@ ipcMain.handle('launch-game', async () => {
       const totalMb = Math.floor(os.totalmem() / (1024 * 1024));
       if (totalMb <= 4500) {
         profileToUse = 'ultra_potato';
-      } else if (totalMb <= 6500) {
+      } else if (totalMb <= 8500) {
         profileToUse = 'potato';
-      } else {
+      } else if (totalMb <= 16500) {
         profileToUse = 'optimized_g1gc';
+      } else {
+        profileToUse = 'extreme_zgc';
       }
       logToFile(`[SYSTEM] Profil JVM ustawiony na 'auto'. Automatycznie dobrano profil: ${profileToUse} (Dostępna pamięć: ${totalMb} MB)`);
     } else {
@@ -2022,72 +2025,121 @@ ipcMain.handle('launch-game', async () => {
       profileToUse = 'optimized_g1gc';
     }
 
+    // Oblicz G1HeapRegionSize i warianty Aikar's flags w zależności od przydzielonego RAM
+    const ramMb = config.ram || 4096;
+    // Aikar's: dla >12GB RAM używamy większych wartości
+    const largeHeap = ramMb > 12288;
+    const g1HeapRegionSize = largeHeap ? '16M' : '8M';
+    const g1NewSizePercent = largeHeap ? 40 : 30;
+    const g1MaxNewSizePercent = largeHeap ? 50 : 40;
+    const ihop = largeHeap ? 20 : 15;
+    // ZGC SoftMaxHeapSize = 80% przydzielonego RAM, min 4096m
+    const zgcSoftMax = Math.max(4096, Math.floor(ramMb * 0.80));
+
     let customArgs = [];
     if (profileToUse === 'ultra_potato') {
+      // Zoptymalizowany G1GC dla bardzo słabych PC (≤4GB RAM) — minimalne zużycie pamięci
       customArgs = [
         "-XX:+UseG1GC",
         "-XX:+UnlockExperimentalVMOptions",
-        "-XX:G1NewSizePercent=10",
-        "-XX:G1ReservePercent=10",
-        "-XX:MaxGCPauseMillis=100",
-        "-XX:G1HeapRegionSize=8M",
+        "-XX:MaxGCPauseMillis=200",
+        "-XX:+ParallelRefProcEnabled",
         "-XX:+DisableExplicitGC",
         "-XX:-AlwaysPreTouch",
-        "-XX:+UseStringDeduplication",
-        "-XX:MaxDirectMemorySize=512m",
-        "-Dsun.rmi.dgc.server.gcInterval=2147483646",
-        "-Djava.awt.headless=false",
-        "-Dfml.ignorePatchDiscrepancies=true",
+        "-XX:G1NewSizePercent=10",
+        "-XX:G1MaxNewSizePercent=20",
+        "-XX:G1ReservePercent=10",
+        "-XX:G1HeapWastePercent=5",
+        "-XX:G1MixedGCCountTarget=4",
+        "-XX:G1HeapRegionSize=4M",
+        "-XX:InitiatingHeapOccupancyPercent=25",
+        "-XX:G1MixedGCLiveThresholdPercent=90",
+        "-XX:G1RSetUpdatingPauseTimePercent=5",
+        "-XX:SurvivorRatio=32",
+        "-XX:MaxTenuringThreshold=1",
+        "-XX:+PerfDisableSharedMem",
         "-XX:ConcGCThreads=1",
-        "-XX:ParallelGCThreads=2"
+        "-XX:ParallelGCThreads=2",
+        "-Dusing.aikars.flags=https://mcflags.emc.gs",
+        "-Daikars.new.flags=true"
       ];
     } else if (profileToUse === 'potato') {
+      // Aikar's Flags lite — dla słabych PC (4–8GB RAM), balans stabilności i RAM
       customArgs = [
         "-XX:+UseG1GC",
         "-XX:+UnlockExperimentalVMOptions",
-        "-XX:G1NewSizePercent=20",
-        "-XX:G1ReservePercent=20",
-        "-XX:MaxGCPauseMillis=50",
-        "-XX:G1HeapRegionSize=16M",
+        "-XX:MaxGCPauseMillis=200",
+        "-XX:+ParallelRefProcEnabled",
         "-XX:+DisableExplicitGC",
         "-XX:+AlwaysPreTouch",
-        "-XX:+UseStringDeduplication",
-        "-XX:MaxDirectMemorySize=1G",
-        "-Dsun.rmi.dgc.server.gcInterval=2147483646"
+        "-XX:G1NewSizePercent=20",
+        "-XX:G1MaxNewSizePercent=30",
+        "-XX:G1ReservePercent=20",
+        "-XX:G1HeapWastePercent=5",
+        "-XX:G1MixedGCCountTarget=4",
+        "-XX:G1HeapRegionSize=8M",
+        "-XX:InitiatingHeapOccupancyPercent=15",
+        "-XX:G1MixedGCLiveThresholdPercent=90",
+        "-XX:G1RSetUpdatingPauseTimePercent=5",
+        "-XX:SurvivorRatio=32",
+        "-XX:MaxTenuringThreshold=1",
+        "-XX:+PerfDisableSharedMem",
+        "-Dusing.aikars.flags=https://mcflags.emc.gs",
+        "-Daikars.new.flags=true"
       ];
     } else if (profileToUse === 'optimized_g1gc') {
+      // Pełne Aikar's Flags — złoty standard dla Minecraft, eliminuje mikroprzycięcia GC
       customArgs = [
         "-XX:+UseG1GC",
         "-XX:+UnlockExperimentalVMOptions",
-        "-XX:MaxGCPauseMillis=20",
-        "-XX:G1NewSizePercent=30",
-        "-XX:G1ReservePercent=20",
-        "-XX:InitiatingHeapOccupancyPercent=15",
-        "-XX:G1MixedGCLiveThresholdPercent=90",
-        "-XX:G1HeapRegionSize=32M",
+        "-XX:MaxGCPauseMillis=200",
         "-XX:+ParallelRefProcEnabled",
-        "-XX:+UseStringDeduplication",
+        "-XX:+DisableExplicitGC",
         "-XX:+AlwaysPreTouch",
-        "-XX:MaxDirectMemorySize=2G"
+        `-XX:G1NewSizePercent=${g1NewSizePercent}`,
+        `-XX:G1MaxNewSizePercent=${g1MaxNewSizePercent}`,
+        `-XX:G1ReservePercent=20`,
+        "-XX:G1HeapWastePercent=5",
+        "-XX:G1MixedGCCountTarget=4",
+        `-XX:G1HeapRegionSize=${g1HeapRegionSize}`,
+        `-XX:InitiatingHeapOccupancyPercent=${ihop}`,
+        "-XX:G1MixedGCLiveThresholdPercent=90",
+        "-XX:G1RSetUpdatingPauseTimePercent=5",
+        "-XX:SurvivorRatio=32",
+        "-XX:+PerfDisableSharedMem",
+        "-XX:MaxTenuringThreshold=1",
+        "-Dusing.aikars.flags=https://mcflags.emc.gs",
+        "-Daikars.new.flags=true"
       ];
     } else if (profileToUse === 'extreme_zgc') {
+      // ZGC — najniższe opóźnienia GC, wymaga Java 17+ (Java 21 dla trybu generacyjnego)
       customArgs = [
         "-XX:+UseZGC",
         "-XX:+UnlockExperimentalVMOptions",
         "-XX:+AlwaysPreTouch",
         "-XX:+DisableExplicitGC",
         "-XX:+ParallelRefProcEnabled",
-        "-XX:SoftMaxHeapSize=8192m",
-        "-XX:MaxDirectMemorySize=2G"
+        `-XX:SoftMaxHeapSize=${zgcSoftMax}m`,
+        "-XX:+PerfDisableSharedMem",
+        "-XX:ZUncommitDelay=600"
       ];
       if (requiredJavaVer === 21) {
         customArgs.push("-XX:+ZGenerational");
+        logToFile("[SYSTEM] ZGC: Włączono tryb generacyjny (Java 21).");
       }
+    }
+
+    // Dołącz własne flagi użytkownika (po flagach profilu)
+    const userCustomArgs = (config.customJvmArgs || '').trim();
+    if (userCustomArgs) {
+      const parsedUserArgs = userCustomArgs.split(/\s+/).filter(Boolean);
+      customArgs = [...customArgs, ...parsedUserArgs];
+      logToFile(`[SYSTEM] Dodano własne flagi JVM użytkownika: ${parsedUserArgs.join(' ')}`);
     }
 
     if (customArgs.length > 0) {
       launchOpts.customArgs = customArgs;
-      logToFile(`[SYSTEM] Dodano argumenty JVM: ${customArgs.join(' ')}`);
+      logToFile(`[SYSTEM] Kompletne argumenty JVM: ${customArgs.join(' ')}`);
     }
 
     launcher.on('debug', (e) => {
