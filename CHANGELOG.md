@@ -1,5 +1,9 @@
-
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
+
+## [1.1.4] - 2026-08-19
+### Poprawiono (Fixed)
+- **Zduplikowany kod UI:** Usunięto błąd powodujący wyświetlanie dwóch sekcji aktualizacji na dole okna Ustawień.
+- **Hotfix (Critical):** Naprawiono krytyczny błąd powodujący crash po świeżej instalacji z powodu braku pliku utils/fs_utils.js.
 
 ## [1.1.3] - 2026-08-19
 ### Poprawiono (Fixed)
