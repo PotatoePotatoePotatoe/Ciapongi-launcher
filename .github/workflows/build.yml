@@ -1,0 +1,33 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Uruchamia się automatycznie po wypuszczeniu tagu np. v1.1.3
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pobieranie repozytorium
+        uses: actions/checkout@v4
+
+      - name: Konfiguracja Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalacja zależności
+        run: npm install
+
+      - name: Budowanie Frontendu (Vite)
+        run: npm run build:renderer
+
+      - name: Kompilacja i Publikacja (Linux)
+        uses: samuelmeuli/action-electron-builder@v1.5.0
+        with:
+          # Buduje wyłącznie dla Linuksa (--linux)
+          args: --linux
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release: true
