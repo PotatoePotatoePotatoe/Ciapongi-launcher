@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld('api', {
   // Launch Minecraft
   launchGame: () => ipcRenderer.invoke('launch-game'),
   killGame: () => ipcRenderer.invoke('kill-game'),
+  repairGame: () => ipcRenderer.invoke('repair-game'),
 
   // Launcher Updater
   checkForLauncherUpdates: () => ipcRenderer.invoke('check-for-launcher-updates'),

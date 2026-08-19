@@ -9,17 +9,8 @@ const { pathToFileURL } = require('url');
 const githubUpdater = require('./github-updater');
 const { Auth } = require('msmc');
 const crypto = require('crypto');
+const fsUtils = require('./utils/fs_utils');
 
-function calculateHash(filePath) {
-  return new Promise((resolve) => {
-    if (!fs.existsSync(filePath)) return resolve(null);
-    const hash = crypto.createHash('sha256');
-    const stream = fs.createReadStream(filePath);
-    stream.on('error', () => resolve(null));
-    stream.on('data', chunk => hash.update(chunk));
-    stream.on('end', () => resolve(hash.digest('hex')));
-  });
-}
 
 // Główna konfiguracja i okno
 let mainWindow = null;
@@ -34,13 +25,6 @@ const configPath = path.join(appBaseDir, 'launcher-config-local.json');
 const defaultGameDir = path.join(app.getPath('documents'), 'CiapongiRP', 'minecraft-instance');
 const logPath = path.join(appBaseDir, 'launcher-latest.log');
 
-function logToFile(message) {
-  try {
-    fs.appendFileSync(logPath, message + '\n', 'utf8');
-  } catch (err) {
-    console.error("Błąd zapisu logu do pliku:", err);
-  }
-}
 
 const DEFAULT_CONFIG = {
   minecraftVersion: "1.20.1",
@@ -127,24 +111,6 @@ function writeConfig(config) {
   }
 }
 
-function findJavaExecutable(dir) {
-  if (!fs.existsSync(dir)) return null;
-  const items = fs.readdirSync(dir);
-  const isWin = process.platform === 'win32';
-  const matchName = isWin ? 'java.exe' : 'java';
-
-  for (const item of items) {
-    const fullPath = path.join(dir, item);
-    const stat = fs.statSync(fullPath);
-    if (stat.isDirectory()) {
-      const found = findJavaExecutable(fullPath);
-      if (found) return found;
-    } else if (item.toLowerCase() === matchName) {
-      return fullPath;
-    }
-  }
-  return null;
-}
 
 async function downloadFile(url, destPath, onProgress, headers = {}) {
   const writer = fs.createWriteStream(destPath);
@@ -193,76 +159,8 @@ async function downloadFile(url, destPath, onProgress, headers = {}) {
   });
 }
 
-function copyDirRecursive(src, dest, relativeList = [], baseDest = dest) {
-  if (!fs.existsSync(dest)) {
-    fs.mkdirSync(dest, { recursive: true });
-  }
-  const entries = fs.readdirSync(src, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    if (entry.isDirectory()) {
-      if (['saves', 'screenshots', 'logs'].includes(entry.name.toLowerCase())) {
-        continue;
-      }
-      copyDirRecursive(srcPath, destPath, relativeList, baseDest);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
-      const rel = path.relative(baseDest, destPath).replace(/\\/g, '/');
-      relativeList.push(rel);
-    }
-  }
-  return relativeList;
-}
 
-function findPackRoot(dir) {
-  const items = fs.readdirSync(dir);
-  if (items.includes('mods') || items.includes('config') || items.includes('launcher-config.json')) {
-    return dir;
-  }
-  for (const item of items) {
-    const fullPath = path.join(dir, item);
-    if (fs.statSync(fullPath).isDirectory()) {
-      const subRoot = findPackRoot(fullPath);
-      if (subRoot) return subRoot;
-    }
-  }
-  return null;
-}
 
-function isPackFullyInstalled(gameDir) {
-  const manifestPath = path.join(gameDir, 'pack-manifest.json');
-  const modsDir = path.join(gameDir, 'mods');
-
-  if (!fs.existsSync(manifestPath) || !fs.existsSync(modsDir)) {
-    return false;
-  }
-
-  try {
-    const manifestFiles = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    if (!Array.isArray(manifestFiles) || manifestFiles.length < 5) {
-      return false;
-    }
-
-    const manifestFilesExist = manifestFiles.every(file => fs.existsSync(path.join(gameDir, file)));
-    if (!manifestFilesExist) {
-      return false;
-    }
-
-    const modFiles = fs.readdirSync(modsDir).map(f => f.toLowerCase());
-    const hasFabricApi = modFiles.some(f => f.includes('fabric-api') || f.includes('fabric_api'));
-    const hasSodium = modFiles.some(f => f.includes('sodium'));
-    const hasMtr = modFiles.some(f => f.includes('mtr') || f.includes('minecraft-transit-railway'));
-
-    if (!hasFabricApi || !hasSodium || !hasMtr) {
-      return false;
-    }
-
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
 
 function sendUpdateEvent(data) {
   if (mainWindow) mainWindow.webContents.send('launcher-update-event', data);
@@ -270,14 +168,14 @@ function sendUpdateEvent(data) {
 
 function setupLauncherUpdater() {
   if (!app.isPackaged) {
-    logToFile('[GithubUpdater] Dev mode — updater disabled.');
+    fsUtils.logToFile('[GithubUpdater] Dev mode — updater disabled.');
     return;
   }
   const config = readConfig();
   const autoDownload = config.autoUpdateLauncher !== false;
   // Sprawdz aktualizacje przy starcie aplikacji
   githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, logToFile)
-    .catch(err => logToFile('[GithubUpdater] Init check error: ' + err));
+    .catch(err => fsUtils.logToFile('[GithubUpdater] Init check error: ' + err));
 }
 
 ipcMain.handle('check-for-launcher-updates', async () => {
@@ -287,7 +185,7 @@ ipcMain.handle('check-for-launcher-updates', async () => {
     await githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, logToFile);
     return { success: true };
   } catch (err) {
-    logToFile('[GithubUpdater] Manual check error: ' + err);
+    fsUtils.logToFile('[GithubUpdater] Manual check error: ' + err);
     return { success: false, error: err.message };
   }
 });
@@ -297,7 +195,7 @@ ipcMain.handle('install-launcher-update', () => {
     githubUpdater.installUpdate(null, logToFile);
     return { success: true };
   } catch (err) {
-    logToFile('[GithubUpdater] Install error: ' + err);
+    fsUtils.logToFile('[GithubUpdater] Install error: ' + err);
     return { success: false, error: err.message };
   }
 });
@@ -569,7 +467,7 @@ ipcMain.handle('login-microsoft', async () => {
 
     return { success: true, profile: { name: profile.name, uuid: profile.uuid } };
   } catch (err) {
-    logToFile(`[ERROR] Błąd logowania Microsoft (msmc): ${err.message}`);
+    fsUtils.logToFile(`[ERROR] Błąd logowania Microsoft (msmc): ${err.message}`);
     return { success: false, error: err.message || 'Anulowano lub wystąpił błąd logowania.' };
   }
 });
@@ -658,13 +556,13 @@ ipcMain.handle('add-server-to-minecraft', async () => {
     if (fs.existsSync(serversDatPath)) {
       const existing = fs.readFileSync(serversDatPath);
       if (existing.includes(SERVER_IP)) {
-        logToFile('[SYSTEM] Serwer Ciapongi-RP już istnieje w servers.dat — pomijanie zapisu.');
+        fsUtils.logToFile('[SYSTEM] Serwer Ciapongi-RP już istnieje w servers.dat — pomijanie zapisu.');
         return { success: true, alreadyExists: true };
       }
     }
 
     fs.writeFileSync(serversDatPath, header);
-    logToFile(`[SYSTEM] Zapisano servers.dat z serwerem ${SERVER_IP}`);
+    fsUtils.logToFile(`[SYSTEM] Zapisano servers.dat z serwerem ${SERVER_IP}`);
     return { success: true };
   } catch (err) {
     console.error('Błąd zapisu servers.dat:', err);
@@ -771,25 +669,25 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
   const manifestPath = path.join(gameDir, 'pack-manifest.json');
 
   if (config.disableAutoUpdate && !force) {
-    const isInstalled = isPackFullyInstalled(gameDir);
+    const isInstalled = fsUtils.isPackFullyInstalled(gameDir);
     if (isInstalled) {
       mainWindow.webContents.send('status-message', 'Automatyczne aktualizacje paczki są wyłączone.');
       mainWindow.webContents.send('pack-sync-progress', { status: 'idle', progress: 100 });
       return { success: true };
     } else {
       mainWindow.webContents.send('status-message', 'Brak plików paczki modów na dysku. Wymuszanie pierwszeństwa pobrania pierwszej instalacji...');
-      logToFile('[SYSTEM] Opcja disableAutoUpdate jest włączona, ale paczka nie istnieje na dysku. Pobieranie pierwszej instalacji...');
+      fsUtils.logToFile('[SYSTEM] Opcja disableAutoUpdate jest włączona, ale paczka nie istnieje na dysku. Pobieranie pierwszej instalacji...');
     }
   }
 
   // Sprawdzenie cache 24h — jeśli paczka jest zainstalowana i sprawdzano niedawno, pomijamy API
   if (!force) {
-    const isInstalled = isPackFullyInstalled(gameDir);
+    const isInstalled = fsUtils.isPackFullyInstalled(gameDir);
     const lastCheck = config.lastPackGithubCheck || 0;
     const timeSinceCheck = Date.now() - lastCheck;
     if (isInstalled && timeSinceCheck < PACK_CHECK_INTERVAL_MS) {
       const hoursLeft = Math.round((PACK_CHECK_INTERVAL_MS - timeSinceCheck) / 3600000);
-      logToFile(`[SYSTEM] Cache 24h aktywny — pomijam sprawdzanie GitHub (odświeżenie za ~${hoursLeft}h).`);
+      fsUtils.logToFile(`[SYSTEM] Cache 24h aktywny — pomijam sprawdzanie GitHub (odświeżenie za ~${hoursLeft}h).`);
       mainWindow.webContents.send('status-message', `Paczka jest gotowa (wersja ${config.packVersion || 'aktualna'})`);
       mainWindow.webContents.send('pack-sync-progress', { status: 'idle', progress: 100 });
       return { success: true, updated: false };
@@ -831,7 +729,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
     }
 
     const latestVersion = releaseInfo.tag_name;
-    const isInstalled = isPackFullyInstalled(gameDir);
+    const isInstalled = fsUtils.isPackFullyInstalled(gameDir);
 
     if (!force && config.packVersion === latestVersion && isInstalled) {
       // Zaktualizuj timestamp sprawdzania i zapisz
@@ -844,7 +742,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
 
     if (!force && config.packVersion === latestVersion && !isInstalled) {
       mainWindow.webContents.send('status-message', 'Coś poszło nie tak z plikami paczki. Launcher naprawia i pobiera brakujące mody...');
-      logToFile('[SYSTEM] Wykryto brakujące lub uszkodzone pliki paczki przy zgodnej wersji. Uruchamianie naprawy...');
+      fsUtils.logToFile('[SYSTEM] Wykryto brakujące lub uszkodzone pliki paczki przy zgodnej wersji. Uruchamianie naprawy...');
     } else {
       mainWindow.webContents.send('status-message', `Wykryto nową wersję na serwerze: ${releaseInfo.name || releaseInfo.tag_name}. Przygotowywanie aktualizacji...`);
     }
@@ -933,7 +831,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
         else if (fs.existsSync(disabledPath)) fileToHash = disabledPath;
 
         if (fileToHash) {
-          const localHash = await calculateHash(fileToHash);
+          const localHash = await fsUtils.calculateHash(fileToHash);
           if (localHash !== rf.hash) {
             filesToExtract.push(rfPath);
           }
@@ -999,7 +897,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       const zip = new AdmZip(zipPath);
       zip.extractAllTo(extractPath, true);
 
-      const packRoot = findPackRoot(extractPath);
+      const packRoot = fsUtils.findPackRoot(extractPath);
       if (!packRoot) throw new Error("W archiwum ZIP nie odnaleziono katalogu z modami (mods) ani konfiguracją (config).");
 
       // Konfiguracja launchera
@@ -1016,7 +914,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       }
 
       if (needsFullExtract) {
-        copyDirRecursive(packRoot, gameDir, copiedFiles, gameDir);
+        fsUtils.copyDirRecursive(packRoot, gameDir, copiedFiles, gameDir);
       } else {
         // Pseudo-Delta: Kopiujemy tylko brakujące / różniące się pliki, ale z pamięcią starych ok
         for (const rfPath of filesToExtract) {
@@ -1122,7 +1020,7 @@ ipcMain.handle('get-launcher-release-notes', async () => {
       };
     }
   } catch (err) {
-    logToFile('Nie udalo sie pobrac CHANGELOG.md: ' + err.message);
+    fsUtils.logToFile('Nie udalo sie pobrac CHANGELOG.md: ' + err.message);
     // Fallback: pobierz opisy z GitHub releases API (ostatnie 10)
     try {
       const apiURL = 'https://api.github.com/repos/PotatoePotatoePotatoe/Ciapongi-launcher/releases?per_page=10';
@@ -1137,7 +1035,7 @@ ipcMain.handle('get-launcher-release-notes', async () => {
         };
       }
     } catch (fallbackErr) {
-      logToFile('Fallback releases API rowniez nieudany: ' + fallbackErr.message);
+      fsUtils.logToFile('Fallback releases API rowniez nieudany: ' + fallbackErr.message);
     }
   }
   return null;
@@ -1844,7 +1742,7 @@ function cleanDuplicateMods(modsDir) {
       }
     }
     if (disabledList.length > 0) {
-      logToFile(`[SYSTEM] Wykryto i wyłączono duplikaty modów: ${disabledList.join(', ')}`);
+      fsUtils.logToFile(`[SYSTEM] Wykryto i wyłączono duplikaty modów: ${disabledList.join(', ')}`);
     }
   } catch (err) {
     console.error("Błąd podczas czyszczenia duplikatów modów:", err);
@@ -1885,7 +1783,7 @@ ipcMain.handle('launch-game', async () => {
     let finalJavaPath = config.javaPath;
     if (!finalJavaPath) {
       const javaDir = path.join(gameDir, `java-runtime-${requiredJavaVer}`);
-      const javaExec = findJavaExecutable(javaDir);
+      const javaExec = fsUtils.findJavaExecutable(javaDir);
 
       if (javaExec) {
         finalJavaPath = javaExec;
@@ -1926,7 +1824,7 @@ ipcMain.handle('launch-game', async () => {
 
         fs.rmSync(javaTempFile);
 
-        finalJavaPath = findJavaExecutable(javaDir);
+        finalJavaPath = fsUtils.findJavaExecutable(javaDir);
         if (!finalJavaPath) {
           throw new Error(`Pobrane środowisko Java ${requiredJavaVer} jest nieprawidłowe. Brak pliku wykonywalnego java.`);
         }
@@ -2022,13 +1920,13 @@ ipcMain.handle('launch-game', async () => {
       } else {
         profileToUse = 'extreme_zgc';
       }
-      logToFile(`[SYSTEM] Profil JVM ustawiony na 'auto'. Automatycznie dobrano profil: ${profileToUse} (Dostępna pamięć: ${totalMb} MB)`);
+      fsUtils.logToFile(`[SYSTEM] Profil JVM ustawiony na 'auto'. Automatycznie dobrano profil: ${profileToUse} (Dostępna pamięć: ${totalMb} MB)`);
     } else {
-      logToFile(`[SYSTEM] Używanie wybranego profilu JVM: ${profileToUse}`);
+      fsUtils.logToFile(`[SYSTEM] Używanie wybranego profilu JVM: ${profileToUse}`);
     }
 
     if (profileToUse === 'extreme_zgc' && requiredJavaVer === 8) {
-      logToFile("[SYSTEM] Ostrzeżenie: Wykryto Java 8 przy wybranym profilu ZGC. Zmiana profilu na G1GC dla kompatybilności.");
+      fsUtils.logToFile("[SYSTEM] Ostrzeżenie: Wykryto Java 8 przy wybranym profilu ZGC. Zmiana profilu na G1GC dla kompatybilności.");
       profileToUse = 'optimized_g1gc';
     }
 
@@ -2133,7 +2031,7 @@ ipcMain.handle('launch-game', async () => {
       ];
       if (requiredJavaVer === 21) {
         customArgs.push("-XX:+ZGenerational");
-        logToFile("[SYSTEM] ZGC: Włączono tryb generacyjny (Java 21).");
+        fsUtils.logToFile("[SYSTEM] ZGC: Włączono tryb generacyjny (Java 21).");
       }
     }
 
@@ -2142,22 +2040,22 @@ ipcMain.handle('launch-game', async () => {
     if (userCustomArgs) {
       const parsedUserArgs = userCustomArgs.split(/\s+/).filter(Boolean);
       customArgs = [...customArgs, ...parsedUserArgs];
-      logToFile(`[SYSTEM] Dodano własne flagi JVM użytkownika: ${parsedUserArgs.join(' ')}`);
+      fsUtils.logToFile(`[SYSTEM] Dodano własne flagi JVM użytkownika: ${parsedUserArgs.join(' ')}`);
     }
 
     if (customArgs.length > 0) {
       launchOpts.customArgs = customArgs;
-      logToFile(`[SYSTEM] Kompletne argumenty JVM: ${customArgs.join(' ')}`);
+      fsUtils.logToFile(`[SYSTEM] Kompletne argumenty JVM: ${customArgs.join(' ')}`);
     }
 
     launcher.on('debug', (e) => {
       const formatted = `[MCLC DEBUG] ${e}`;
       mainWindow.webContents.send('game-log', formatted);
-      logToFile(formatted);
+      fsUtils.logToFile(formatted);
     });
     launcher.on('data', (e) => {
       mainWindow.webContents.send('game-log', e);
-      logToFile(e.trimEnd());
+      fsUtils.logToFile(e.trimEnd());
     });
     launcher.on('progress', (e) => {
       const percent = Math.round((e.task / e.total) * 100);
@@ -2176,7 +2074,7 @@ ipcMain.handle('launch-game', async () => {
       minecraftProcess = null;
       mainWindow.webContents.send('launch-progress', { status: 'idle', progress: 0 });
       mainWindow.webContents.send('status-message', `Gra została wyłączona (kod: ${code})`);
-      logToFile(`\n[SYSTEM] Gra została zamknięta z kodem wyjścia: ${code}`);
+      fsUtils.logToFile(`\n[SYSTEM] Gra została zamknięta z kodem wyjścia: ${code}`);
       if (mainWindow) {
         mainWindow.show();
         mainWindow.focus();
@@ -2187,7 +2085,7 @@ ipcMain.handle('launch-game', async () => {
 
     mainWindow.webContents.send('status-message', 'Gra pomyślnie wystartowała! Życzymy miłej zabawy.');
     mainWindow.webContents.send('launch-progress', { status: 'running', progress: 100 });
-    logToFile("[SYSTEM] Pomyślnie przekazano kontrolę do procesu Minecraft.");
+    fsUtils.logToFile("[SYSTEM] Pomyślnie przekazano kontrolę do procesu Minecraft.");
 
     setTimeout(() => {
       if (mainWindow) {
@@ -2205,7 +2103,7 @@ ipcMain.handle('launch-game', async () => {
     console.error("Błąd podczas uruchamiania gry:", err);
     mainWindow.webContents.send('status-message', `Błąd uruchamiania: ${err.message}`);
     mainWindow.webContents.send('launch-progress', { status: 'error', error: err.message });
-    logToFile(`[ERROR] ${err.stack || err.message}`);
+    fsUtils.logToFile(`[ERROR] ${err.stack || err.message}`);
     return { success: false, error: err.message };
   }
 });

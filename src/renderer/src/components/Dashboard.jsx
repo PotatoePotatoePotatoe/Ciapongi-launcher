@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Play, RefreshCw, Layers, ShieldCheck, HelpCircle, Wifi, FolderOpen, DownloadCloud, ChevronDown } from 'lucide-react';
 import ciapongiBg from '../../assets/ciapongi_bg.png';
 
-function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, onLaunch, onKill, onSync, onSave }) {
+function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, onLaunch, onKill, onSync, onRepair, onSave }) {
   const [serverStatus, setServerStatus] = useState({ online: false, players: { online: 0, max: 100 }, version: 'Loading...', loading: true });
 
   const [releaseNotes, setReleaseNotes] = useState(null);
@@ -551,6 +551,27 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
           >
             <RefreshCw size={16} />
             Wymuś aktualizację paczki
+          </button>
+
+          <button
+            className="btn btn-outline"
+            onClick={() => {
+              if (window.confirm('To zresetuje i ponownie pobierze całą paczkę modów od zera.\n\nTwoje własne mody i ustawienia zostaną zachowane.\n\nCzy na pewno chcesz kontynuować?')) {
+                onRepair();
+              }
+            }}
+            disabled={isWorking || launchProgress.status === 'running'}
+            style={{
+              width: '100%',
+              gap: '8px',
+              height: '46px',
+              cursor: isWorking || launchProgress.status === 'running' ? 'not-allowed' : 'pointer',
+              borderColor: 'rgba(239, 68, 68, 0.4)',
+              color: '#f87171'
+            }}
+          >
+            <ShieldCheck size={16} />
+            Napraw pliki gry
           </button>
         </div>
       </div>

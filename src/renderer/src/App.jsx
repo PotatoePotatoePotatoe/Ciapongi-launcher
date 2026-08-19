@@ -162,6 +162,26 @@ function App() {
     }
   }, []);
 
+  const handleRepairGame = useCallback(async () => {
+    if (launchProgress.status === 'running') {
+      setStatusMessage('Nie można naprawiać plików podczas gdy gra jest uruchomiona.');
+      return;
+    }
+    setStatusMessage('Resetowanie plików gry — proszę czekać...');
+    setPackSyncProgress({ status: 'downloading', progress: 0 });
+    const result = await window.api.repairGame();
+    if (result && result.success === false) {
+      setStatusMessage('Błąd naprawiania: ' + result.error);
+      setPackSyncProgress({ status: 'error' });
+    } else {
+      // Wywołanie pełnej synchronizacji po usunięciu manifestu po stronie Node
+      const syncRes = await window.api.syncPack(true);
+      if (!syncRes || !syncRes.success) {
+        setStatusMessage('Błąd pobierania paczki po naprawie: ' + (syncRes?.error || 'Nieznany błąd'));
+      }
+    }
+  }, [launchProgress.status]);
+
   const handleSyncPack = useCallback(async () => {
     if (launchProgress.status !== 'idle' && launchProgress.status !== 'error') return;
     setStatusMessage('Sprawdzanie aktualizacji paczki...');
@@ -363,6 +383,7 @@ function App() {
                 onLaunch={handleLaunchGame}
                 onKill={handleKillGame}
                 onSync={handleSyncPack}
+                onRepair={handleRepairGame}
                 onSave={updateConfig}
               />
             )}

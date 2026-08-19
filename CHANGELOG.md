@@ -1,6 +1,20 @@
 
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.1.3] - 2026-08-19
+### Poprawiono (Fixed)
+- **Aktualizator launchera na Windows:** Naprawiono błąd, przez który aktualizacja pobierała się, ale po restarcie nie pojawiało się okno instalatora. Zmieniono metodę wywoływania z `spawn` na `shell.openPath`, wymuszając poprawne podniesienie uprawnień (UAC) do zainstalowania aktualizacji.
+- **Zagubiony panel aktualizacji:** Przywrócono brakujący kod UI w zakładce "Ustawienia" do obsługi ręcznego pobierania aktualizacji launchera.
+- **System zdarzeń głównego procesu (IPC):** Wyeliminowano krytyczny błąd asynchroniczności, przez który mechanizm naprawy mógł spowodować zablokowanie procesu wywołując niewłaściwy typ handlera IPC.
+
+### Zmieniono (Changed)
+- **Refaktoryzacja głównego procesu:** Scalono pliki `main-win.js` i `main-linux.js` w jeden zunifikowany plik `main.js`, używając weryfikacji platformy do obsługi specyficznych dla systemu akcji.
+- **Discord RPC:** Całkowicie usunięto bibliotekę i obsługę Discord RPC (bogatej obecności) z launchera na polecenie użytkownika.
+
+### Dodano (Added)
+- **Automatyczna aktualizacja na systemie Linux:** Launcher teraz domyślnie generuje i wykorzystuje format `.AppImage` zamiast zwykłego archiwum `.tar.gz`. Mechanizm aktualizacji zyskał wsparcie dla automatycznej podmiany pliku AppImage i samoczynnego restartowania, oferując na Linuksie to samo bezproblemowe doświadczenie instalacji co instalator Windows.
+- **Przycisk "Napraw pliki gry":** Nowy czerwony przycisk w panelu Dashboard pod przyciskiem wymuszenia aktualizacji. Służy on do całkowitego zresetowania lokalnej informacji o paczce i manifestu, zmuszając instalator do ponownego, pełnego pobrania całej zawartości od zera. Zachowuje własne mody gracza.
+
 ## [1.1.2] - 2026-08-17
 ### Poprawiono (Fixed)
 - **Krytyczny błąd `extreme_zgc` — EMERGENCY allocator failure:** Naprawiono błąd powodujący crash renderowania chunków (`EMERGENCY: Tried to allocate N bytes but the allocator reports failure`). Przyczyną było statyczne ustawienie `-XX:SoftMaxHeapSize=8192m` niezależne od przydzielonego RAM — ZGC zbyt agresywnie zwalniał pamięć, nie pozostawiając miejsca na alokacje renderera. Wartość jest teraz dynamiczna: **80% przydzielonego RAM** (np. przy 10 GB → 8192m, przy 16 GB → 13107m). Dodano również `-XX:ZUncommitDelay=600` spowalniający oddawanie pamięci do systemu.

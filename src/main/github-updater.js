@@ -179,25 +179,55 @@ async function startDownload(asset, sendEvent, logToFile) {
 
 /**
  * Instaluje pobrana aktualizacje.
- * Windows: uruchamia instalator NSIS i zamyka launcher.
- * Linux: otwiera folder z plikiem.
+ * Windows: otwiera instalator NSIS przez shell.openPath (wyzwala UAC) i zamyka launcher.
+ * Linux (AppImage): podmienia aktualny plik i restartuje.
+ * Linux (inne): otwiera folder z plikiem.
  */
 function installUpdate(filePath, logToFile) {
   const file = filePath || downloadedFilePath;
   if (!file) {
-    logToFile('[GithubUpdater] Install called but no file downloaded.');
+    if (logToFile) logToFile('[GithubUpdater] Install called but no file downloaded.');
     return;
   }
-  logToFile('[GithubUpdater] Installing update: ' + file);
+  if (logToFile) logToFile('[GithubUpdater] Installing update: ' + file);
+
   if (process.platform === 'win32') {
-    const { spawn } = require('child_process');
-    // Dodajemy opóźnienie 1-2 sekundy, aby launcher zdążył całkowicie się zamknąć i zwolnić pliki.
-    // Usunięto flagę /S, aby użytkownik widział instalator wizualnie
-    const command = `timeout /T 2 /NOBREAK > nul & "${file}"`;
-    const child = spawn('cmd.exe', ['/c', command], { detached: true, stdio: 'ignore', windowsHide: true });
-    child.unref();
-    app.exit(0);
+    // shell.openPath poprawnie wyzwala UAC i pokazuje okienko instalatora
+    shell.openPath(file).then((errMsg) => {
+      if (errMsg) {
+        if (logToFile) logToFile('[GithubUpdater] shell.openPath error: ' + errMsg);
+        return;
+      }
+      // Daj instalatorowi 1.5s na start zanim zamkniemy launcher
+      setTimeout(() => app.exit(0), 1500);
+    });
+  } else if (process.platform === 'linux' && process.env.APPIMAGE && file.endsWith('.AppImage')) {
+    // Automatyczna podmiana AppImage na Linuxie
+    try {
+      const currentAppImage = process.env.APPIMAGE;
+      if (logToFile) logToFile(`[GithubUpdater] Replacing current AppImage: ${currentAppImage} with ${file}`);
+      
+      // Kopiujemy nowy plik w miejsce starego AppImage
+      fs.copyFileSync(file, currentAppImage);
+      // Upewniamy się, że nowy plik ma prawa do uruchomienia
+      fs.chmodSync(currentAppImage, 0o755);
+      
+      // Uruchamiamy nowy AppImage jako całkowicie niezależny proces
+      const { spawn } = require('child_process');
+      const child = spawn(currentAppImage, [], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      child.unref();
+
+      // Zamykamy stary proces launchera
+      app.exit(0);
+    } catch (err) {
+      if (logToFile) logToFile('[GithubUpdater] Failed to replace AppImage: ' + err.message);
+      shell.showItemInFolder(file);
+    }
   } else {
+    // Jeśli to nie Windows i nie AppImage, po prostu otwórz folder
     shell.showItemInFolder(file);
   }
 }
