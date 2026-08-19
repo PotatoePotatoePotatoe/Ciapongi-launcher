@@ -1,11 +1,11 @@
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
-## [1.1.4] - 2026-08-19
+## [1.1.4] 
 ### Poprawiono (Fixed)
 - **Zduplikowany kod UI:** Usunięto błąd powodujący wyświetlanie dwóch sekcji aktualizacji na dole okna Ustawień.
 - **Hotfix (Critical):** Naprawiono krytyczny błąd powodujący crash po świeżej instalacji z powodu braku pliku utils/fs_utils.js.
 
-## [1.1.3] - 2026-08-19
+## [1.1.3] 
 ### Poprawiono (Fixed)
 - **Aktualizator launchera na Windows:** Naprawiono błąd, przez który aktualizacja pobierała się, ale po restarcie nie pojawiało się okno instalatora. Zmieniono metodę wywoływania z `spawn` na `shell.openPath`, wymuszając poprawne podniesienie uprawnień (UAC) do zainstalowania aktualizacji.
 - **Zagubiony panel aktualizacji:** Przywrócono brakujący kod UI w zakładce "Ustawienia" do obsługi ręcznego pobierania aktualizacji launchera.
@@ -19,7 +19,7 @@ Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane 
 - **Automatyczna aktualizacja na systemie Linux:** Launcher teraz domyślnie generuje i wykorzystuje format `.AppImage` zamiast zwykłego archiwum `.tar.gz`. Mechanizm aktualizacji zyskał wsparcie dla automatycznej podmiany pliku AppImage i samoczynnego restartowania, oferując na Linuksie to samo bezproblemowe doświadczenie instalacji co instalator Windows.
 - **Przycisk "Napraw pliki gry":** Nowy czerwony przycisk w panelu Dashboard pod przyciskiem wymuszenia aktualizacji. Służy on do całkowitego zresetowania lokalnej informacji o paczce i manifestu, zmuszając instalator do ponownego, pełnego pobrania całej zawartości od zera. Zachowuje własne mody gracza.
 
-## [1.1.2] - 2026-08-17
+## [1.1.2] 
 ### Poprawiono (Fixed)
 - **Krytyczny błąd `extreme_zgc` — EMERGENCY allocator failure:** Naprawiono błąd powodujący crash renderowania chunków (`EMERGENCY: Tried to allocate N bytes but the allocator reports failure`). Przyczyną było statyczne ustawienie `-XX:SoftMaxHeapSize=8192m` niezależne od przydzielonego RAM — ZGC zbyt agresywnie zwalniał pamięć, nie pozostawiając miejsca na alokacje renderera. Wartość jest teraz dynamiczna: **80% przydzielonego RAM** (np. przy 10 GB → 8192m, przy 16 GB → 13107m). Dodano również `-XX:ZUncommitDelay=600` spowalniający oddawanie pamięci do systemu.
 - **Niespójne progi auto-doboru profilu JVM:** Ujednolicono logikę we wszystkich 3 miejscach (`readConfig`, funkcja startowania gry, przycisk rekomendacji w Ustawieniach). Poprzednio launcher w trybie `auto` przy starcie gry używał progu `≤6500 MB` dla profilu `potato` (zamiast `≤8500 MB`) i nigdy nie wybierał `extreme_zgc` nawet na maszynach z >16 GB RAM. Naprawiono.
@@ -32,7 +32,7 @@ Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane 
 ### Dodano (Added)
 - **Pole własnych flag JVM w Ustawieniach:** W zakładce Ustawień, pod selektorem profilu JVM, pojawiło się nowe pole tekstowe (`textarea`) umożliwiające wpisanie własnych flag JVM. Flagi te są doklejane **po** flagach wybranego profilu i zapisywane automatycznie. Pole obsługuje wieloliniowy tekst oraz spacje jako separatory flag.
 
-## [1.1.1] - 2026-08-14
+## [1.1.1] 
 ### Poprawiono (Fixed)
 - **Krytyczny błąd JVM — flagi Akira (optimized_g1gc):** Usunięto błędną flagę `-XX:+MaxMetaspaceFreeRatio=10` (nieprawidłowy prefiks `+` zamiast `=`), która powodowała crash Javy przy starcie Minecrafta z profilem G1GC. Flagi `MinMetaspaceFreeRatio` i `MaxMetaspaceFreeRatio` zostały całkowicie usunięte ze wszystkich profili JVM (`ultra_potato`, `potato`, `optimized_g1gc`) — były niekompatybilne z nowszymi wersjami JDK i niepotrzebnie ograniczały GC.
 - **Domyślny folder instalacji:** Zmieniono lokalizację domyślnego katalogu gry z `AppData` na `Dokumenty\CiapongiRP\minecraft-instance`. Pliki paczki są teraz łatwo dostępne dla użytkownika bez zagłębiania się w ukryte foldery systemowe.
@@ -94,6 +94,8 @@ Kolory podświetleń (Hover/Shadows): Usunięto sztywno zapisane, fioletowe cien
 
 ### Poprawiono (Fixed)
 - **Wymuszenie logowania (Czysta instalacja):** Usunięto lokalny plik z danymi logowania i konfiguracją środowiska deweloperskiego. Wygenerowane wersje są w pełni wyczyszczone – domyślnie wymagają logowania na konto.
+
+### Wcześniejsze wersję usunięte ze względu na udostępnie plików prywatnych dewelopera
 
 ## [1.0.2]
 ### Zmieniono (Changed)
