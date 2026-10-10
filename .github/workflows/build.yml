@@ -3,33 +3,37 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*' # Uruchamia się automatycznie po wypuszczeniu tagu np. v1.1.3
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build-linux:
+    name: Build Linux Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Pobieranie repozytorium
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Konfiguracja Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
-      - name: Instalacja zależności
-        run: npm install
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Budowanie Frontendu (Vite)
+      - name: Build renderer
         run: npm run build:renderer
 
-      - name: Kompilacja i Publikacja (Linux)
+      - name: Build and publish Electron app for Linux
         uses: samuelmeuli/action-electron-builder@v1.5.0
         with:
-          # Buduje wyłącznie dla Linuksa (--linux)
-          args: --linux
+          args: --linux AppImage tar.gz deb
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release: true
