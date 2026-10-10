@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -32,8 +32,6 @@ jobs:
         run: npm run build:renderer
 
       - name: Build and publish Electron app for Linux
-        uses: samuelmeuli/action-electron-builder@v1.5.0
-        with:
-          args: --linux AppImage tar.gz deb
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          release: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --linux AppImage tar.gz deb -p always
