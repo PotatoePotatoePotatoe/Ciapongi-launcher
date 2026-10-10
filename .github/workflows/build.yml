@@ -34,4 +34,4 @@ jobs:
       - name: Build and publish Electron app for Linux
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --linux AppImage tar.gz -p always
+        run: npx electron-builder --linux AppImage tar.gz -p always -c.publish.releaseType=release
