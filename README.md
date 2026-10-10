@@ -53,7 +53,7 @@ Gotowe pliki binarne do własnoręcznego ulokowania w systemie.
 | Kategoria | Wymagania Minimalne (Tryb Potato) | Zalecane |
 | :--- | :--- | :--- |
 | **Pamięć RAM** | 4 GB | 8 GB+ |
-| **System** | Windows 10/11 (64-bit), Linux | Windows 11 (64-bit) |
+| **System** | Windows 10/11 (64-bit), Linux | Windows 11 (64-bit), Linux |
 | **Java** | Java 17/21 | Java 21 |
 
 ## 🛠️ Stack Technologiczny
