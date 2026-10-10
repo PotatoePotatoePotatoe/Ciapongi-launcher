@@ -71,7 +71,8 @@
     "linux": {
       "target": [
         "AppImage",
-        "tar.gz"
+        "tar.gz",
+        "deb"
       ],
       "icon": "icon.png",
       "category": "Game"
