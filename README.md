@@ -24,10 +24,29 @@
 Aby zacząć grać na serwerze CiapongiRP:
 
 1. Przejdź do zakładki **[Releases](https://github.com/PotatoePotatoePotatoe/Ciapongi-launcher/releases/latest)**.
-2. Pobierz odpowiedni plik dla swojego systemu:
-   - **Windows:** Pobierz plik `CiapongiRPLauncher Setup x.x.x x64.exe`
-   - **Linux:** Pobierz paczkę `CiapongiRP_Linux.zip`
-3. Zainstaluj launcher i ciesz się grą!
+2. Pobierz odpowiedni plik dla swojego systemu operacyjnego:
+
+### 🪟 Windows
+Pobierz plik `CiapongiRPLauncher Setup x.x.x x64.exe` lub `CiapongiRPLauncher x.x.x x64.exe` kliknij w niego dwukrotnie, zainstaluj i ciesz się grą!
+
+### 🐧 Linux (Instrukcja uniwersalna dla wszystkich dystrybucji)
+Wygenerowaliśmy pliki, które zadziałają na każdym Linuxie (Ubuntu, Linux Mint, Debian, Arch, Fedora itp.). Wybierz jedną z metod:
+
+**Metoda 1: Plik `.AppImage` (Zalecana i najprostsza)**
+Nowoczesny, przenośny format. Działa bez instalacji.
+1. Pobierz plik `CiapongiRPLauncher-x.x.x.AppImage`.
+2. Kliknij na plik prawym przyciskiem myszy -> wybierz **Właściwości** -> zakładka **Uprawnienia**.
+3. Zaznacz opcję: **Zezwól na wykonywanie pliku jako programu**.
+4. Dwukrotnie kliknij plik i graj!
+
+*(Wskazówka dla użytkowników **Ubuntu 22.04 / 24.04** i nowszych: Jeśli plik nie chce się uruchomić, otwórz terminal i wpisz `sudo apt install libfuse2`, aby doinstalować obsługę plików AppImage).*
+
+**Metoda 2: Plik `.tar.gz` (Dla zaawansowanych)**
+Gotowe pliki binarne do własnoręcznego ulokowania w systemie.
+1. Pobierz plik `ciapongi-rp-launcher-x.x.x.tar.gz`.
+2. Wypakuj archiwum w dowolnym folderze (np. `~/Gry/CiapongiLauncher`).
+3. Wejdź do wypakowanego folderu, nadaj plikowi `ciapongi-rp-launcher` uprawnienia do uruchamiania i odpal go.
+
 
 ## ⚙️ Wymagania Sprzętowe
 
