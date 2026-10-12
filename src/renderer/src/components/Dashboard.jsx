@@ -474,7 +474,10 @@ function Dashboard({ config, statusMessage, packSyncProgress, launchProgress, on
                             e.target.style.color = config.targetPackVersion === v.tag_name ? '#60a5fa' : 'var(--text-muted)';
                           }}
                         >
-                          {v.name}
+                          <span>{v.name}</span>
+                          {v.size && <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px', opacity: 0.7 }}>
+                            {(v.size / 1048576).toFixed(0)} MB
+                          </span>}
                         </div>
                       ))}
                     </div>

@@ -1,5 +1,11 @@
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.1.5]
+### Zmieniono (Changed)
+- **Migracja źródła paczek serwera na ciapongi.szablix.pl:** Pobieranie paczek oraz lista wydań przeniesione z GitHub na bezpośrednie API `ciapongi.szablix.pl/paczki`. Umożliwia to wybór i pobieranie także starszych wersji paczki serwerowej.
+- **Aktualizator launchera (`github-updater.js`):** Moduł aktualizacji launchera sprawdza w pierwszej kolejności serwer `ciapongi.szablix.pl` (z bezpiecznym fallbackiem na GitHub Releases).
+- **Interfejs Dashboard:** Dodano wyświetlanie rozmiaru paczki w megabajtach w liście wyboru wersji.
+
 ## [1.1.4] 
 ### Poprawiono (Fixed)
 - **Zduplikowany kod UI:** Usunięto błąd powodujący wyświetlanie dwóch sekcji aktualizacji na dole okna Ustawień.

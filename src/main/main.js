@@ -651,22 +651,19 @@ ipcMain.handle('remove-account', async (event, { index }) => {
 });
 
 ipcMain.handle('get-pack-versions', async (event) => {
-  const config = readConfig();
-  const headers = { 'User-Agent': 'Ciapongi-RP-Launcher' };
-  if (config.githubToken) {
-    headers['Authorization'] = `token ${config.githubToken}`;
-  }
-  const apiURL = 'https://api.github.com/repos/KrolestwoSZABLIXa/Ciapongi-RP/releases';
+  const PACZKI_API = 'https://ciapongi.szablix.pl/paczki';
   try {
-    const res = await axios.get(apiURL, { headers });
-    if (!res.data || res.data.length === 0) return [];
-    return res.data.map(r => ({
-      tag_name: r.tag_name,
-      name: r.name || r.tag_name,
-      published_at: r.published_at
+    const res = await axios.get(PACZKI_API, { headers: { 'User-Agent': 'Ciapongi-RP-Launcher' } });
+    if (!res.data || !Array.isArray(res.data) || res.data.length === 0) return [];
+    return res.data.map(p => ({
+      tag_name: p.version,
+      name: `CiapongiRP ${p.version}`,
+      published_at: p.createdAt,
+      filename: p.filename,
+      size: p.size
     }));
   } catch (err) {
-    console.error('Błąd pobierania wersji paczki:', err.message);
+    console.error('Błąd pobierania wersji paczki z ciapongi.szablix.pl:', err.message);
     return [];
   }
 });
@@ -676,6 +673,7 @@ const PACK_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 godziny
 
 ipcMain.handle('sync-pack', async (event, force = false) => {
   const config = readConfig();
+  const PACZKI_API = 'https://ciapongi.szablix.pl/paczki';
 
   const gameDir = config.gameDir;
   const manifestPath = path.join(gameDir, 'pack-manifest.json');
@@ -699,7 +697,7 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
     const timeSinceCheck = Date.now() - lastCheck;
     if (isInstalled && timeSinceCheck < PACK_CHECK_INTERVAL_MS) {
       const hoursLeft = Math.round((PACK_CHECK_INTERVAL_MS - timeSinceCheck) / 3600000);
-      fsUtils.logToFile(`[SYSTEM] Cache 24h aktywny — pomijam sprawdzanie GitHub (odświeżenie za ~${hoursLeft}h).`);
+      fsUtils.logToFile(`[SYSTEM] Cache 24h aktywny — pomijam sprawdzanie serwera paczek (odświeżenie za ~${hoursLeft}h).`);
       mainWindow.webContents.send('status-message', `Paczka jest gotowa (wersja ${config.packVersion || 'aktualna'})`);
       mainWindow.webContents.send('pack-sync-progress', { status: 'idle', progress: 100 });
       return { success: true, updated: false };
@@ -709,38 +707,36 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
   const tempDir = path.join(gameDir, 'temp');
 
   try {
-    mainWindow.webContents.send('status-message', 'Sprawdzanie wersji paczki na GitHub...');
+    mainWindow.webContents.send('status-message', 'Sprawdzanie wersji paczki na ciapongi.szablix.pl...');
 
     if (!fs.existsSync(gameDir)) fs.mkdirSync(gameDir, { recursive: true });
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
     const headers = { 'User-Agent': 'Ciapongi-RP-Launcher' };
-    if (config.githubToken) {
-      headers['Authorization'] = `token ${config.githubToken}`;
-    }
 
-    const apiURL = 'https://api.github.com/repos/KrolestwoSZABLIXa/Ciapongi-RP/releases';
-    let releaseInfo;
+    let packList;
+    let targetPack;
     try {
-      const res = await axios.get(apiURL, { headers });
-      if (!res.data || res.data.length === 0) {
-        throw new Error("Brak wydań (releases) w repozytorium.");
+      const res = await axios.get(PACZKI_API, { headers });
+      if (!res.data || !Array.isArray(res.data) || res.data.length === 0) {
+        throw new Error("Brak dostępnych paczek na serwerze.");
       }
+      packList = res.data;
 
       if (config.targetPackVersion && config.targetPackVersion !== 'latest') {
-        releaseInfo = res.data.find(r => r.tag_name === config.targetPackVersion);
-        if (!releaseInfo) {
+        targetPack = packList.find(p => p.version === config.targetPackVersion);
+        if (!targetPack) {
           mainWindow.webContents.send('status-message', `Nie znaleziono wersji ${config.targetPackVersion}, pobieranie najnowszej...`);
-          releaseInfo = res.data[0];
+          targetPack = packList[0];
         }
       } else {
-        releaseInfo = res.data[0];
+        targetPack = packList[0];
       }
     } catch (err) {
-      throw new Error(`Brak połączenia z GitHub API (${err.response?.status === 404 ? 'Repozytorium prywatne lub brak wydań' : err.message})`);
+      throw new Error(`Brak połączenia z serwerem paczek (${err.message})`);
     }
 
-    const latestVersion = releaseInfo.tag_name;
+    const latestVersion = targetPack.version;
     const isInstalled = fsUtils.isPackFullyInstalled(gameDir);
 
     if (!force && config.packVersion === latestVersion && isInstalled) {
@@ -756,35 +752,11 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       mainWindow.webContents.send('status-message', 'Coś poszło nie tak z plikami paczki. Launcher naprawia i pobiera brakujące mody...');
       fsUtils.logToFile('[SYSTEM] Wykryto brakujące lub uszkodzone pliki paczki przy zgodnej wersji. Uruchamianie naprawy...');
     } else {
-      mainWindow.webContents.send('status-message', `Wykryto nową wersję na serwerze: ${releaseInfo.name || releaseInfo.tag_name}. Przygotowywanie aktualizacji...`);
+      mainWindow.webContents.send('status-message', `Wykryto nową wersję na serwerze: CiapongiRP ${latestVersion}. Przygotowywanie aktualizacji...`);
     }
 
-
-    let downloadUrl = null;
-    const assetZip = releaseInfo.assets.find(a => a.name.endsWith('.zip'));
-    const manifestAsset = releaseInfo.assets.find(a => a.name === 'manifest.json');
-
-    if (assetZip) {
-      downloadUrl = assetZip.browser_download_url;
-      mainWindow.webContents.send('status-message', `Sprawdzanie wersji paczki...`);
-    } else {
-      downloadUrl = releaseInfo.zipball_url;
-      mainWindow.webContents.send('status-message', 'Pobieranie plików paczki...');
-    }
-
-    if (!downloadUrl) {
-      throw new Error("Nie znaleziono pliku do pobrania w najnowszym wydaniu.");
-    }
-
-    // --- Pobieranie manifestu ---
-    let remoteManifest = null;
-    if (manifestAsset) {
-      try {
-        remoteManifest = (await axios.get(manifestAsset.browser_download_url, { responseType: 'json' })).data;
-      } catch (e) {
-        console.error("Błąd pobierania manifest.json:", e.message);
-      }
-    }
+    const downloadUrl = `${PACZKI_API}/${encodeURIComponent(targetPack.filename)}`;
+    mainWindow.webContents.send('status-message', `Pobieranie paczki CiapongiRP ${latestVersion}...`);
 
     // --- Znajdywanie wyłączonych modów (ZACHOWANIE FUNKCJI Z OBECNEJ WERSJI) ---
     const disabledPackFiles = new Set();
@@ -815,136 +787,74 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
       }
     }
 
-    if (remoteManifest && remoteManifest.files && Array.isArray(remoteManifest.files)) {
-      needsFullExtract = false;
-      mainWindow.webContents.send('status-message', 'Weryfikacja plików paczki...');
-
-      // Kasowanie plików, których nie ma w nowym manifeście (downgrade / mod usunięty przez twórcę)
-      const remotePaths = new Set(remoteManifest.files.map(f => f.path.replace(/\\/g, '/')));
-      for (const oldFile of oldFilesList) {
-        const oldFileRel = oldFile.replace(/\\/g, '/');
-        if (!remotePaths.has(oldFileRel)) {
-          // Pliku już nie ma w paczce. Kasujemy, jeśli to plik z manifestu.
-          const fullPath = path.join(gameDir, oldFileRel);
-          if (fs.existsSync(fullPath)) fs.rmSync(fullPath, { force: true });
-          if (fs.existsSync(fullPath + '.disabled')) fs.rmSync(fullPath + '.disabled', { force: true });
-        }
-      }
-
-      // Weryfikacja każdego pliku z manifestu
-      let checked = 0;
-      for (const rf of remoteManifest.files) {
-        const rfPath = rf.path.replace(/\\/g, '/');
-        const fullPath = path.join(gameDir, rfPath);
-        const disabledPath = fullPath + '.disabled';
-
-        let fileToHash = null;
-        if (fs.existsSync(fullPath)) fileToHash = fullPath;
-        else if (fs.existsSync(disabledPath)) fileToHash = disabledPath;
-
-        if (fileToHash) {
-          const localHash = await fsUtils.calculateHash(fileToHash);
-          if (localHash !== rf.hash) {
-            filesToExtract.push(rfPath);
-          }
-        } else {
-          filesToExtract.push(rfPath);
-        }
-
-        checked++;
-        if (checked % 10 === 0) {
-          mainWindow.webContents.send('pack-sync-progress', { status: 'verifying', progress: Math.floor((checked / remoteManifest.files.length) * 100) });
-        }
-      }
-    } else {
-      // Brak manifestu -> Stare zachowanie
-      for (const file of oldFilesList) {
-        const fullPath = path.join(gameDir, file);
-        if (fs.existsSync(fullPath)) fs.rmSync(fullPath, { force: true });
-        if (fs.existsSync(fullPath + '.disabled')) fs.rmSync(fullPath + '.disabled', { force: true });
-      }
+    // Strona nie udostępnia manifest.json z hashami — zawsze robimy pełny extract
+    // Brak manifestu -> Stare zachowanie: kasujemy stare pliki
+    for (const file of oldFilesList) {
+      const fullPath = path.join(gameDir, file);
+      if (fs.existsSync(fullPath)) fs.rmSync(fullPath, { force: true });
+      if (fs.existsSync(fullPath + '.disabled')) fs.rmSync(fullPath + '.disabled', { force: true });
     }
 
     const copiedFiles = [];
 
-    if (needsFullExtract || filesToExtract.length > 0) {
-      mainWindow.webContents.send('status-message', `Pobieranie najnowszej paczki modyfikacji...`);
-      mainWindow.webContents.send('pack-sync-progress', { status: 'downloading', progress: 0 });
+    mainWindow.webContents.send('status-message', `Pobieranie paczki modyfikacji CiapongiRP ${latestVersion}...`);
+    mainWindow.webContents.send('pack-sync-progress', { status: 'downloading', progress: 0 });
 
-      const zipPath = path.join(tempDir, 'pack.zip');
-      const writer = fs.createWriteStream(zipPath);
+    const zipPath = path.join(tempDir, 'pack.zip');
+    const writer = fs.createWriteStream(zipPath);
 
-      const response = await axios({
-        url: downloadUrl,
-        method: 'GET',
-        responseType: 'stream',
-        headers
-      });
+    const response = await axios({
+      url: downloadUrl,
+      method: 'GET',
+      responseType: 'stream',
+      headers
+    });
 
-      const totalLength = response.headers['content-length'];
-      let downloaded = 0;
+    const totalLength = response.headers['content-length'] || targetPack.size;
+    let downloaded = 0;
 
-      response.data.on('data', (chunk) => {
-        downloaded += chunk.length;
-        if (totalLength) {
-          const progress = Math.round((downloaded / totalLength) * 100);
-          mainWindow.webContents.send('pack-sync-progress', { status: 'downloading', progress, speed: '0 MB/s' });
-        }
-      });
-
-      response.data.pipe(writer);
-
-      await new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', reject);
-      });
-
-      mainWindow.webContents.send('status-message', 'Wypakowywanie plików...');
-      mainWindow.webContents.send('pack-sync-progress', { status: 'extracting', progress: 50 });
-
-      const extractPath = path.join(tempDir, 'extracted');
-      if (fs.existsSync(extractPath)) fs.rmSync(extractPath, { recursive: true, force: true });
-      fs.mkdirSync(extractPath, { recursive: true });
-
-      const zip = new AdmZip(zipPath);
-      zip.extractAllTo(extractPath, true);
-
-      const packRoot = fsUtils.findPackRoot(extractPath);
-      if (!packRoot) throw new Error("W archiwum ZIP nie odnaleziono katalogu z modami (mods) ani konfiguracją (config).");
-
-      // Konfiguracja launchera
-      const innerConfigPath = path.join(packRoot, 'launcher-config.json');
-      if (fs.existsSync(innerConfigPath)) {
-        try {
-          const innerConfig = JSON.parse(fs.readFileSync(innerConfigPath, 'utf8'));
-          let updated = false;
-          if (innerConfig.minecraftVersion && innerConfig.minecraftVersion !== config.minecraftVersion) { config.minecraftVersion = innerConfig.minecraftVersion; updated = true; }
-          if (innerConfig.loaderVersion && innerConfig.loaderVersion !== config.loaderVersion) { config.loaderVersion = innerConfig.loaderVersion; updated = true; }
-          if (innerConfig.loader && innerConfig.loader !== config.loader) { config.loader = innerConfig.loader; updated = true; }
-          if (updated) writeConfig(config);
-        } catch (e) { console.error("Błąd configu:", e); }
+    response.data.on('data', (chunk) => {
+      downloaded += chunk.length;
+      if (totalLength) {
+        const progress = Math.round((downloaded / totalLength) * 100);
+        mainWindow.webContents.send('pack-sync-progress', { status: 'downloading', progress, speed: '0 MB/s' });
       }
+    });
 
-      if (needsFullExtract) {
-        fsUtils.copyDirRecursive(packRoot, gameDir, copiedFiles, gameDir);
-      } else {
-        // Pseudo-Delta: Kopiujemy tylko brakujące / różniące się pliki, ale z pamięcią starych ok
-        for (const rfPath of filesToExtract) {
-          const srcPath = path.join(packRoot, rfPath);
-          const destPath = path.join(gameDir, rfPath);
-          if (fs.existsSync(srcPath)) {
-            const destDir = path.dirname(destPath);
-            if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
-            fs.copyFileSync(srcPath, destPath);
-          }
-        }
-        // Uzupełniamy skopiowane pliki o te, które przeszły weryfikację
-        remoteManifest.files.forEach(rf => copiedFiles.push(rf.path.replace(/\\/g, '/')));
-      }
-    } else {
-      // Wszystko aktualne
-      copiedFiles.push(...remoteManifest.files.map(rf => rf.path.replace(/\\/g, '/')));
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+    });
+
+    mainWindow.webContents.send('status-message', 'Wypakowywanie plików...');
+    mainWindow.webContents.send('pack-sync-progress', { status: 'extracting', progress: 50 });
+
+    const extractPath = path.join(tempDir, 'extracted');
+    if (fs.existsSync(extractPath)) fs.rmSync(extractPath, { recursive: true, force: true });
+    fs.mkdirSync(extractPath, { recursive: true });
+
+    const zip = new AdmZip(zipPath);
+    zip.extractAllTo(extractPath, true);
+
+    const packRoot = fsUtils.findPackRoot(extractPath);
+    if (!packRoot) throw new Error("W archiwum ZIP nie odnaleziono katalogu z modami (mods) ani konfiguracją (config).");
+
+    // Konfiguracja launchera
+    const innerConfigPath = path.join(packRoot, 'launcher-config.json');
+    if (fs.existsSync(innerConfigPath)) {
+      try {
+        const innerConfig = JSON.parse(fs.readFileSync(innerConfigPath, 'utf8'));
+        let updated = false;
+        if (innerConfig.minecraftVersion && innerConfig.minecraftVersion !== config.minecraftVersion) { config.minecraftVersion = innerConfig.minecraftVersion; updated = true; }
+        if (innerConfig.loaderVersion && innerConfig.loaderVersion !== config.loaderVersion) { config.loaderVersion = innerConfig.loaderVersion; updated = true; }
+        if (innerConfig.loader && innerConfig.loader !== config.loader) { config.loader = innerConfig.loader; updated = true; }
+        if (updated) writeConfig(config);
+      } catch (e) { console.error("Błąd configu:", e); }
     }
+
+    fsUtils.copyDirRecursive(packRoot, gameDir, copiedFiles, gameDir);
 
     // Odtwarzanie stanu modów wyłączonych (.disabled) - Funkcja z obecnej wersji zachowana
     if (disabledPackFiles.size > 0) {
@@ -987,25 +897,21 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
 });
 
 ipcMain.handle('get-latest-release-notes', async () => {
-  const config = readConfig();
-  const headers = { 'User-Agent': 'Ciapongi-RP-Launcher' };
-  if (config.githubToken) {
-    headers['Authorization'] = `token ${config.githubToken}`;
-  }
-  const apiURL = 'https://api.github.com/repos/KrolestwoSZABLIXa/Ciapongi-RP/releases';
+  const PACZKI_API = 'https://ciapongi.szablix.pl/paczki';
   try {
-    const res = await axios.get(apiURL, { headers });
-    if (res.data && res.data.length > 0) {
+    const res = await axios.get(PACZKI_API, { headers: { 'User-Agent': 'Ciapongi-RP-Launcher' } });
+    if (res.data && Array.isArray(res.data) && res.data.length > 0) {
       const latest = res.data[0];
+      const sizeStr = latest.size ? `${(latest.size / 1048576).toFixed(1)} MB` : 'Nieznany rozmiar';
       return {
-        tag_name: latest.tag_name,
-        name: latest.name || latest.tag_name,
-        body: latest.body || 'Brak opisu dla tej wersji.',
-        published_at: latest.published_at
+        tag_name: latest.version,
+        name: `CiapongiRP ${latest.version}`,
+        body: `Paczka CiapongiRP w wersji ${latest.version} (${sizeStr}).\n\nPobierz najnowszą wersję przez launcher lub ze strony ciapongi.szablix.pl`,
+        published_at: latest.createdAt
       };
     }
   } catch (err) {
-    console.error("Błąd pobierania release notes:", err);
+    console.error("Błąd pobierania release notes z ciapongi.szablix.pl:", err);
   }
   return null;
 });
