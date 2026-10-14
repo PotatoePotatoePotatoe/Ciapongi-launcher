@@ -38,7 +38,7 @@ const logPath = path.join(appBaseDir, 'launcher-latest.log');
 const DEFAULT_CONFIG = {
   minecraftVersion: "1.20.1",
   loader: "fabric",
-  loaderVersion: "0.19.3",
+  loaderVersion: "0.19.5",
   ram: 4096,
   nickname: "",
   gameDir: defaultGameDir,
@@ -118,6 +118,23 @@ function writeConfig(config) {
   } catch (err) {
     console.error("Błąd zapisu config.json:", err);
   }
+}
+
+// Pobieranie najnowszej stabilnej wersji Fabric Loader z oficjalnego API
+async function getLatestFabricLoader(mcVersion = '1.20.1') {
+  try {
+    const res = await axios.get(`https://meta.fabricmc.net/v2/versions/loader/${mcVersion}`, {
+      timeout: 8000,
+      headers: { 'User-Agent': 'Ciapongi-RP-Launcher' }
+    });
+    if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+      const stable = res.data.find(v => v.loader && v.loader.stable);
+      return stable ? stable.loader.version : res.data[0].loader.version;
+    }
+  } catch (err) {
+    console.error('Błąd pobierania najnowszej wersji Fabric Loader:', err.message);
+  }
+  return null;
 }
 
 
@@ -260,6 +277,21 @@ app.whenReady().then(() => {
 
   createWindow();
   setupLauncherUpdater();
+
+  // Automatyczne sprawdzenie i zaktualizowanie najnowszej wersji Fabric Loader
+  getLatestFabricLoader().then(latest => {
+    if (latest) {
+      const cfg = readConfig();
+      if (cfg.loaderVersion !== latest) {
+        fsUtils.logToFile(`[Fabric] Wykryto nowszą wersję Fabric: ${cfg.loaderVersion} -> ${latest}`);
+        cfg.loaderVersion = latest;
+        writeConfig(cfg);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('config-updated', cfg);
+        }
+      }
+    }
+  }).catch(() => {});
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -848,8 +880,14 @@ ipcMain.handle('sync-pack', async (event, force = false) => {
         const innerConfig = JSON.parse(fs.readFileSync(innerConfigPath, 'utf8'));
         let updated = false;
         if (innerConfig.minecraftVersion && innerConfig.minecraftVersion !== config.minecraftVersion) { config.minecraftVersion = innerConfig.minecraftVersion; updated = true; }
-        if (innerConfig.loaderVersion && innerConfig.loaderVersion !== config.loaderVersion) { config.loaderVersion = innerConfig.loaderVersion; updated = true; }
         if (innerConfig.loader && innerConfig.loader !== config.loader) { config.loader = innerConfig.loader; updated = true; }
+        if (innerConfig.loaderVersion && innerConfig.loaderVersion !== 'latest' && innerConfig.loaderVersion !== config.loaderVersion) {
+          // Zezwól na zmianę tylko jeśli config nie ma jeszcze wersji lub wersja z paczki jest nowsza
+          if (!config.loaderVersion || innerConfig.loaderVersion > config.loaderVersion) {
+            config.loaderVersion = innerConfig.loaderVersion;
+            updated = true;
+          }
+        }
         if (updated) writeConfig(config);
       } catch (e) { console.error("Błąd configu:", e); }
     }
@@ -1597,6 +1635,235 @@ ipcMain.handle('add-local-project', async (event, { filePath, projectType }) => 
   }
 });
 
+// Sprawdzanie dostępnych aktualizacji dla zainstalowanych modów przez Modrinth API
+ipcMain.handle('check-mod-updates', async (event, { projectType } = {}) => {
+  const config = readConfig();
+  const gameDir = config.gameDir;
+  const modsDir = path.join(gameDir, 'mods');
+
+  if (!fs.existsSync(modsDir)) {
+    return { success: true, updates: [] };
+  }
+
+  try {
+    const files = fs.readdirSync(modsDir).filter(f => f.endsWith('.jar') || f.endsWith('.jar.disabled'));
+    const hashMap = new Map();
+    const hashes = [];
+
+    for (const f of files) {
+      try {
+        const fullPath = path.join(modsDir, f);
+        const buf = fs.readFileSync(fullPath);
+        const hash = crypto.createHash('sha1').update(buf).digest('hex');
+        hashMap.set(hash, f);
+        hashes.push(hash);
+      } catch (e) { }
+    }
+
+    if (hashes.length === 0) {
+      return { success: true, updates: [] };
+    }
+
+    const targetMc = config.minecraftVersion || '1.20.1';
+    const targetLoader = config.loader || 'fabric';
+
+    const res = await axios.post('https://api.modrinth.com/v2/version_files/update', {
+      hashes: hashes,
+      algorithm: 'sha1',
+      game_versions: [targetMc],
+      loaders: [targetLoader]
+    }, {
+      headers: { 'User-Agent': 'Ciapongi-RP-Launcher' },
+      timeout: 15000
+    });
+
+    const updates = [];
+    if (res.data && typeof res.data === 'object') {
+      for (const [oldHash, newVerData] of Object.entries(res.data)) {
+        const oldFile = hashMap.get(oldHash);
+        if (!oldFile || !newVerData || !newVerData.files) continue;
+
+        const primaryFile = newVerData.files.find(f => f.primary) || newVerData.files[0];
+        if (!primaryFile) continue;
+
+        if (primaryFile.hashes && primaryFile.hashes.sha1 !== oldHash) {
+          updates.push({
+            oldFilename: oldFile,
+            newFilename: primaryFile.filename,
+            newVersion: newVerData.version_number || newVerData.name,
+            downloadUrl: primaryFile.url,
+            projectId: newVerData.project_id,
+            changelog: newVerData.changelog || ''
+          });
+        }
+      }
+    }
+
+    return { success: true, updates };
+  } catch (err) {
+    console.error('Błąd sprawdzania aktualizacji modów:', err.message);
+    return { success: false, error: err.message, updates: [] };
+  }
+});
+
+// Aktualizacja pojedynczego moda (pobiera nowy i usuwa stary, nie tworząc duplikatów)
+ipcMain.handle('update-mod', async (event, { oldFilename, newFilename, downloadUrl }) => {
+  const config = readConfig();
+  const gameDir = config.gameDir;
+  const modsDir = path.join(gameDir, 'mods');
+
+  try {
+    const isOldDisabled = oldFilename.endsWith('.disabled');
+    const actualNewFilename = isOldDisabled && !newFilename.endsWith('.disabled')
+      ? newFilename + '.disabled'
+      : newFilename;
+
+    const destPath = path.join(modsDir, actualNewFilename);
+    const tempPath = path.join(modsDir, `${actualNewFilename}.tmp`);
+
+    mainWindow.webContents.send('status-message', `Pobieranie aktualizacji: ${newFilename}...`);
+
+    const response = await axios({
+      method: 'GET',
+      url: downloadUrl,
+      responseType: 'stream',
+      headers: { 'User-Agent': 'Ciapongi-RP-Launcher' },
+      timeout: 30000
+    });
+
+    const writer = fs.createWriteStream(tempPath);
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+    });
+
+    if (fs.existsSync(destPath)) {
+      try { fs.unlinkSync(destPath); } catch (e) { }
+    }
+    fs.renameSync(tempPath, destPath);
+
+    const oldPathStandard = path.join(modsDir, oldFilename.replace(/\.disabled$/i, ''));
+    const oldPathDisabled = path.join(modsDir, oldFilename.replace(/\.disabled$/i, '') + '.disabled');
+
+    if (oldPathStandard !== destPath && fs.existsSync(oldPathStandard)) {
+      try { fs.unlinkSync(oldPathStandard); } catch (e) { }
+    }
+    if (oldPathDisabled !== destPath && fs.existsSync(oldPathDisabled)) {
+      try { fs.unlinkSync(oldPathDisabled); } catch (e) { }
+    }
+
+    const userManifestPath = path.join(gameDir, 'user-manifest.json');
+    if (fs.existsSync(userManifestPath)) {
+      try {
+        let manifest = JSON.parse(fs.readFileSync(userManifestPath, 'utf8'));
+        const cleanOld = oldFilename.replace(/\.disabled$/i, '');
+        const cleanNew = actualNewFilename.replace(/\.disabled$/i, '');
+        let updatedManifest = false;
+        manifest = manifest.map(item => {
+          if (item.filename === cleanOld || item.filename === oldFilename) {
+            updatedManifest = true;
+            return { ...item, filename: cleanNew };
+          }
+          return item;
+        });
+        if (updatedManifest) {
+          fs.writeFileSync(userManifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+        }
+      } catch (e) { }
+    }
+
+    mainWindow.webContents.send('status-message', `Zaktualizowano: ${newFilename}!`);
+    return { success: true, newFilename: actualNewFilename };
+  } catch (err) {
+    console.error(`Błąd aktualizacji moda ${oldFilename}:`, err.message);
+    return { success: false, error: err.message };
+  }
+});
+
+// Aktualizacja zbiorcza modów
+ipcMain.handle('update-all-mods', async (event, { updatesList }) => {
+  if (!Array.isArray(updatesList) || updatesList.length === 0) {
+    return { success: true, updatedCount: 0 };
+  }
+
+  const config = readConfig();
+  const gameDir = config.gameDir;
+  const modsDir = path.join(gameDir, 'mods');
+
+  let updatedCount = 0;
+  const errors = [];
+
+  for (const upd of updatesList) {
+    try {
+      const isOldDisabled = upd.oldFilename.endsWith('.disabled');
+      const actualNewFilename = isOldDisabled && !upd.newFilename.endsWith('.disabled')
+        ? upd.newFilename + '.disabled'
+        : upd.newFilename;
+
+      const destPath = path.join(modsDir, actualNewFilename);
+      const tempPath = path.join(modsDir, `${actualNewFilename}.tmp`);
+
+      mainWindow.webContents.send('status-message', `Pobieranie ${upd.newFilename}...`);
+
+      const response = await axios({
+        method: 'GET',
+        url: upd.downloadUrl,
+        responseType: 'stream',
+        headers: { 'User-Agent': 'Ciapongi-RP-Launcher' },
+        timeout: 30000
+      });
+
+      const writer = fs.createWriteStream(tempPath);
+      response.data.pipe(writer);
+
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+
+      if (fs.existsSync(destPath)) {
+        try { fs.unlinkSync(destPath); } catch (e) { }
+      }
+      fs.renameSync(tempPath, destPath);
+
+      const oldPathStandard = path.join(modsDir, upd.oldFilename.replace(/\.disabled$/i, ''));
+      const oldPathDisabled = path.join(modsDir, upd.oldFilename.replace(/\.disabled$/i, '') + '.disabled');
+
+      if (oldPathStandard !== destPath && fs.existsSync(oldPathStandard)) {
+        try { fs.unlinkSync(oldPathStandard); } catch (e) { }
+      }
+      if (oldPathDisabled !== destPath && fs.existsSync(oldPathDisabled)) {
+        try { fs.unlinkSync(oldPathDisabled); } catch (e) { }
+      }
+
+      const userManifestPath = path.join(gameDir, 'user-manifest.json');
+      if (fs.existsSync(userManifestPath)) {
+        try {
+          let manifest = JSON.parse(fs.readFileSync(userManifestPath, 'utf8'));
+          const cleanOld = upd.oldFilename.replace(/\.disabled$/i, '');
+          const cleanNew = actualNewFilename.replace(/\.disabled$/i, '');
+          manifest = manifest.map(item => {
+            if (item.filename === cleanOld || item.filename === upd.oldFilename) {
+              return { ...item, filename: cleanNew };
+            }
+            return item;
+          });
+          fs.writeFileSync(userManifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+        } catch (e) { }
+      }
+
+      updatedCount++;
+    } catch (e) {
+      errors.push(`${upd.oldFilename}: ${e.message}`);
+    }
+  }
+
+  mainWindow.webContents.send('status-message', `Zaktualizowano ${updatedCount} z ${updatesList.length} modów.`);
+  return { success: true, updatedCount, errors };
+});
+
 ipcMain.handle('search-mods', async (event, { query, mcVersion }) => {
   return performModrinthSearch(query, mcVersion, 'mod');
 });
@@ -1764,13 +2031,32 @@ ipcMain.handle('launch-game', async () => {
 
     mainWindow.webContents.send('status-message', 'Uruchamianie silnika Fabric...');
 
-    const fabricVersionId = `fabric-loader-${config.loaderVersion}-${config.minecraftVersion}`;
+    // Pobierz najnowszą dostępną wersję Fabric Loader
+    let loaderVer = config.loaderVersion || '0.19.5';
+    try {
+      mainWindow.webContents.send('status-message', 'Sprawdzanie najnowszej wersji Fabric Loader...');
+      const latestFabric = await getLatestFabricLoader(config.minecraftVersion || '1.20.1');
+      if (latestFabric) {
+        if (latestFabric !== config.loaderVersion) {
+          fsUtils.logToFile(`[Fabric] Aktualizacja wersji Fabric Loader: ${config.loaderVersion} -> ${latestFabric}`);
+          config.loaderVersion = latestFabric;
+          writeConfig(config);
+        }
+        loaderVer = latestFabric;
+      }
+    } catch (e) {
+      fsUtils.logToFile(`[Fabric] Błąd sprawdzania najnowszego Fabric, użycie ${loaderVer}: ${e.message}`);
+    }
+
+    mainWindow.webContents.send('status-message', `Silnik Fabric: ${loaderVer}`);
+
+    const fabricVersionId = `fabric-loader-${loaderVer}-${config.minecraftVersion}`;
     const versionDir = path.join(gameDir, 'versions', fabricVersionId);
     const versionJsonPath = path.join(versionDir, `${fabricVersionId}.json`);
 
     if (!fs.existsSync(versionJsonPath)) {
       fs.mkdirSync(versionDir, { recursive: true });
-      const fabricMetaUrl = `https://meta.fabricmc.net/v2/versions/loader/${config.minecraftVersion}/${config.loaderVersion}/profile/json`;
+      const fabricMetaUrl = `https://meta.fabricmc.net/v2/versions/loader/${config.minecraftVersion}/${loaderVer}/profile/json`;
 
       try {
         const response = await axios.get(fabricMetaUrl, { timeout: 10000 });

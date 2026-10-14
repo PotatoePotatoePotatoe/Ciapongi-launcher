@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -6 43 45" width="1024" height="1024">
+  <!-- Track & Pillars -->
+  <path fill="#6D6E71" d="M0 24h36v4H0z"/>
+  <path fill="#939598" d="M0 22h36v4H0zm6 6h4v8H6zm10 0h4v8h-4zm10 0h4v8h-4z"/>
+  <path fill="#6D6E71" d="M6 27h4v3H6zm10 0h4v3h-4zm10 0h4v3h-4z"/>
+
+  <!-- Top AC unit / pantograph -->
+  <path fill="#BCBEC0" d="M36 0h-6c-1.104 0-2 .896-2 2v2c0 1.104.896 2 2 2h6V0z"/>
+
+  <!-- Undercarriage base (Blue lower skirt) -->
+  <path fill="#2E5BF0" d="M36 20v5H18c-3 0-7-5-7-5h25z"/>
+  <path fill="#1E40AF" d="M11 20s.751.938 1.844 2H36v-2H11z"/>
+
+  <!-- Main Train Body (Clean Off-White) -->
+  <path fill="#EEF2F6" d="M36 20H10c-3 0-7-3-7-6C3 9 19 2 21 2h15v18z"/>
+
+  <!-- Ciapongi Double Blue Stripes -->
+  <!-- Upper cyan/sky-blue stripe -->
+  <path fill="#00D2FF" d="M3.741 12C3.28 12.686 3 13.36 3 14c0 .8.3 1.6.8 2.3C18 16 36 16 36 16v-4H3.741z"/>
+  <!-- Lower deep blue stripe -->
+  <path fill="#2563EB" d="M3.8 16.3C4.5 17.5 5.5 18.5 7 19.3C19 19.3 36 19.3 36 19.3v-3.3H3.8z"/>
+
+  <!-- Orange Headlight -->
+  <ellipse cx="10" cy="15.5" rx="2.5" ry="1.2" fill="#FF6B1A"/>
+
+  <!-- Windows (Ciapongi Cyan / Sky Blue) -->
+  <!-- Front windshield -->
+  <path fill="#00B4D8" stroke="#0077B6" stroke-width="0.3" d="M21 4h-5.553c-3.327 1.524-7.344 3.738-9.898 6H21c1.104 0 2-.896 2-2V6c0-1.104-.896-2-2-2z"/>
+  <!-- Middle window -->
+  <path fill="#00B4D8" stroke="#0077B6" stroke-width="0.3" d="M26 9c0 .552-.447 1-1 1-.553 0-1-.448-1-1V5c0-.552.447-1 1-1 .553 0 1 .448 1 1v4z"/>
+  <!-- Back window -->
+  <path fill="#00B4D8" stroke="#0077B6" stroke-width="0.3" d="M34 9c0 .552-.447 1-1 1h-4c-.553 0-1-.448-1-1V5c0-.552.447-1 1-1h4c.553 0 1 .448 1 1v4z"/>
+</svg>

@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Trash2, FolderHeart, UploadCloud } from 'lucide-react';
+import { Trash2, FolderHeart, UploadCloud, RefreshCw, ArrowUpCircle, CheckCircle2 } from 'lucide-react';
 
 function MyMods({ config }) {
   const [activeType, setActiveType] = useState('mod'); // 'mod', 'shader', 'resourcepack'
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [availableUpdates, setAvailableUpdates] = useState([]);
+  const [updatingMap, setUpdatingMap] = useState({});
+  const [updateStatusMsg, setUpdateStatusMsg] = useState(null);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -22,6 +26,66 @@ function MyMods({ config }) {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  const handleCheckUpdates = async () => {
+    setCheckingUpdates(true);
+    setUpdateStatusMsg(null);
+    try {
+      const res = await window.api.checkModUpdates(activeType);
+      if (res.success) {
+        setAvailableUpdates(res.updates || []);
+        if ((res.updates || []).length === 0) {
+          setUpdateStatusMsg('Wszystkie mody są aktualne! 🎉');
+          setTimeout(() => setUpdateStatusMsg(null), 4000);
+        }
+      } else {
+        alert(`Błąd sprawdzania aktualizacji: ${res.error}`);
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
+
+  const handleUpdateSingle = async (upd) => {
+    setUpdatingMap(prev => ({ ...prev, [upd.oldFilename]: true }));
+    try {
+      const res = await window.api.updateMod(upd);
+      if (res.success) {
+        setAvailableUpdates(prev => prev.filter(u => u.oldFilename !== upd.oldFilename));
+        await fetchProjects();
+      } else {
+        alert(`Błąd aktualizacji: ${res.error}`);
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setUpdatingMap(prev => ({ ...prev, [upd.oldFilename]: false }));
+    }
+  };
+
+  const handleUpdateAll = async () => {
+    if (availableUpdates.length === 0) return;
+    const allKeys = {};
+    availableUpdates.forEach(u => { allKeys[u.oldFilename] = true; });
+    setUpdatingMap(allKeys);
+    try {
+      const res = await window.api.updateAllMods(availableUpdates);
+      if (res.success) {
+        setAvailableUpdates([]);
+        setUpdateStatusMsg(`Pomyślnie zaktualizowano ${res.updatedCount} modów!`);
+        setTimeout(() => setUpdateStatusMsg(null), 4000);
+        await fetchProjects();
+      } else {
+        alert(`Błąd podczas aktualizacji: ${res.error}`);
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setUpdatingMap({});
+    }
+  };
 
   const handleToggle = async (filename, currentStatus) => {
     const nextStatus = !currentStatus;
@@ -194,7 +258,7 @@ function MyMods({ config }) {
       </div>
 
       {/* Zakładki wyboru typu zasobów */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
         <button 
           type="button" 
           className={`btn ${activeType === 'mod' ? 'btn-primary' : 'btn-outline'}`}
@@ -235,7 +299,78 @@ function MyMods({ config }) {
         >
           🌈 Shadery
         </button>
+
+        {(activeType === 'mod' || activeType === 'pack-mod') && (
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleCheckUpdates}
+              disabled={checkingUpdates}
+              style={{ height: '36px', padding: '0 14px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <RefreshCw size={14} className={checkingUpdates ? 'animate-spin' : ''} />
+              {checkingUpdates ? 'Sprawdzanie...' : 'Sprawdź aktualizacje modów'}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Komunikat o statusie aktualizacji */}
+      {updateStatusMsg && (
+        <div style={{
+          background: 'rgba(34, 197, 94, 0.12)',
+          border: '1px solid rgba(34, 197, 94, 0.3)',
+          color: '#4ade80',
+          borderRadius: '10px',
+          padding: '10px 16px',
+          fontSize: '13px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <CheckCircle2 size={16} />
+          <span>{updateStatusMsg}</span>
+        </div>
+      )}
+
+      {/* Pasek dostępnych aktualizacji */}
+      {availableUpdates.length > 0 && (activeType === 'mod' || activeType === 'pack-mod') && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15))',
+          border: '1px solid rgba(168, 85, 247, 0.35)',
+          borderRadius: '12px',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ArrowUpCircle size={20} color="var(--color-primary)" />
+            </div>
+            <div>
+              <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>
+                Dostępne aktualizacje modów ({availableUpdates.length})
+              </span>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+                Wykryto nowsze wersje kompatybilne z Minecraft 1.20.1 na Modrinth.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleUpdateAll}
+            disabled={Object.values(updatingMap).some(Boolean)}
+            style={{ height: '36px', padding: '0 18px', fontSize: '12px', borderRadius: '8px', fontWeight: '600' }}
+          >
+            {Object.values(updatingMap).some(Boolean) ? 'Aktualizowanie...' : `Aktualizuj wszystkie (${availableUpdates.length})`}
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
@@ -256,67 +391,97 @@ function MyMods({ config }) {
       ) : (
         <div style={{ flexGrow: 1, overflowY: 'auto' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {projects.map(project => (
-              <div 
-                key={project.id} 
-                className="glass-card" 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'space-between', 
-                  padding: '16px 24px',
-                  opacity: project.enabled ? 1 : 0.6,
-                  transition: 'opacity 0.2s ease'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', overflow: 'hidden' }}>
-                  <img 
-                    src={project.icon_url || 'https://img.icons8.com/color/96/minecraft-logo.png'} 
-                    style={{ width: '42px', height: '42px', borderRadius: '8px', border: '1px solid var(--border-color)', objectFit: 'cover' }} 
-                    alt={project.title}
-                    onError={(e) => { e.target.src = 'https://img.icons8.com/color/96/minecraft-logo.png'; }}
-                  />
-                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{project.title}</span>
-                      {activeType.startsWith('pack-') && (
-                        <span className="badge badge-violet" style={{ fontSize: '10px', padding: '1px 6px' }}>Paczka Ciapongi RP</span>
-                      )}
+            {projects.map(project => {
+              const matchingUpdate = availableUpdates.find(u => {
+                const cleanOld = u.oldFilename.replace(/\.disabled$/i, '').toLowerCase();
+                const cleanProj = project.filename.replace(/\.disabled$/i, '').toLowerCase();
+                return cleanOld === cleanProj;
+              });
+              const isUpdating = matchingUpdate && updatingMap[matchingUpdate.oldFilename];
+
+              return (
+                <div 
+                  key={project.id} 
+                  className="glass-card" 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    padding: '16px 24px',
+                    opacity: project.enabled ? 1 : 0.6,
+                    transition: 'opacity 0.2s ease',
+                    border: matchingUpdate ? '1px solid rgba(168, 85, 247, 0.4)' : undefined
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', overflow: 'hidden' }}>
+                    <img 
+                      src={project.icon_url || 'https://img.icons8.com/color/96/minecraft-logo.png'} 
+                      style={{ width: '42px', height: '42px', borderRadius: '8px', border: '1px solid var(--border-color)', objectFit: 'cover' }} 
+                      alt={project.title}
+                      onError={(e) => { e.target.src = 'https://img.icons8.com/color/96/minecraft-logo.png'; }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{project.title}</span>
+                        {activeType.startsWith('pack-') && (
+                          <span className="badge badge-violet" style={{ fontSize: '10px', padding: '1px 6px' }}>Paczka Ciapongi RP</span>
+                        )}
+                        {matchingUpdate && (
+                          <span className="badge badge-warning" style={{ fontSize: '10px', padding: '1px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <ArrowUpCircle size={10} /> v{matchingUpdate.newVersion}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>Plik: {project.filename}</span>
                     </div>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>Plik: {project.filename}</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                  {/* Przełącznik Włącz/Wyłącz */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
-                      {project.enabled ? 'Włączony' : 'Wyłączony'}
-                    </span>
-                    <label className="switch">
-                      <input 
-                        type="checkbox" 
-                        checked={project.enabled} 
-                        onChange={() => handleToggle(project.filename, project.enabled)} 
-                      />
-                      <span className="slider"></span>
-                    </label>
                   </div>
 
-                  {/* Przycisk usuwania (tylko dla własnych modów/shaderów/resourcepacków) */}
-                  {!activeType.startsWith('pack-') && (
-                    <button 
-                      className="btn btn-danger" 
-                      onClick={() => handleDelete(project.filename, project.title)}
-                      style={{ width: '36px', height: '36px', padding: 0, borderRadius: '8px' }}
-                      title="Usuń dodatek"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    {/* Przycisk aktualizacji moda jeśli dostępna */}
+                    {matchingUpdate && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => handleUpdateSingle(matchingUpdate)}
+                        disabled={isUpdating}
+                        style={{ height: '34px', padding: '0 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        title={`Zaktualizuj do ${matchingUpdate.newFilename}`}
+                      >
+                        <ArrowUpCircle size={14} className={isUpdating ? 'animate-spin' : ''} />
+                        {isUpdating ? 'Pobieranie...' : 'Aktualizuj'}
+                      </button>
+                    )}
+
+                    {/* Przełącznik Włącz/Wyłącz */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
+                        {project.enabled ? 'Włączony' : 'Wyłączony'}
+                      </span>
+                      <label className="switch">
+                        <input 
+                          type="checkbox" 
+                          checked={project.enabled} 
+                          onChange={() => handleToggle(project.filename, project.enabled)} 
+                        />
+                        <span className="slider"></span>
+                      </label>
+                    </div>
+
+                    {/* Przycisk usuwania (tylko dla własnych modów/shaderów/resourcepacków) */}
+                    {!activeType.startsWith('pack-') && (
+                      <button 
+                        className="btn btn-danger" 
+                        onClick={() => handleDelete(project.filename, project.title)}
+                        style={{ width: '36px', height: '36px', padding: 0, borderRadius: '8px' }}
+                        title="Usuń dodatek"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld('api', {
   toggleProject: (filename, enabled, projectType) => ipcRenderer.invoke('toggle-project', { filename, enabled, projectType }),
   deleteProject: (filename, projectType) => ipcRenderer.invoke('delete-project', { filename, projectType }),
   addLocalProject: (filePath, projectType) => ipcRenderer.invoke('add-local-project', { filePath, projectType }),
+  checkModUpdates: (projectType) => ipcRenderer.invoke('check-mod-updates', { projectType }),
+  updateMod: (updateData) => ipcRenderer.invoke('update-mod', updateData),
+  updateAllMods: (updatesList) => ipcRenderer.invoke('update-all-mods', { updatesList }),
 
   // Modrinth API (Legacy)
   searchMods: (query, mcVersion) => ipcRenderer.invoke('search-mods', { query, mcVersion }),
