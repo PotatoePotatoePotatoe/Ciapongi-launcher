@@ -1163,7 +1163,9 @@ async function installModrinthProjectInternal(projectId, projectType, config, ga
     }
 
     if (compatibleVersions.length > 0) {
-      targetVersion = compatibleVersions[0];
+      // Zawsze instaluj wyłącznie oficjalne wersje stabilne (Release), unikając wersji beta
+      const stableRelease = compatibleVersions.find(v => v.version_type === 'release');
+      targetVersion = stableRelease || compatibleVersions[0];
     }
   } catch (e) { }
 

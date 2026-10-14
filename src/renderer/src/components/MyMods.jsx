@@ -560,7 +560,7 @@ function MyMods({ config }) {
               disabled={Object.values(updatingMap).some(Boolean)}
               style={{ height: '36px', padding: '0 18px', fontSize: '12px', borderRadius: '8px', fontWeight: '700' }}
             >
-              {Object.values(updatingMap).some(Boolean) ? 'Aktualizowanie...' : `Aktualizuj wszystkie do najnowszych (${availableUpdates.length})`}
+              {Object.values(updatingMap).some(Boolean) ? 'Aktualizowanie...' : `Aktualizuj wszystkie do wersji stabilnych (${availableUpdates.length})`}
             </button>
           </div>
 
@@ -585,7 +585,7 @@ function MyMods({ config }) {
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({upd.oldFilename})</span>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>➔</span>
                     <span className="badge badge-success" style={{ fontSize: '11px', padding: '1px 6px' }}>
-                      v{upd.newVersion} (Stabilna)
+                      v{upd.newVersion} (Wydanie stabilne)
                     </span>
                   </div>
 
@@ -608,7 +608,7 @@ function MyMods({ config }) {
                       style={{ height: '30px', padding: '0 12px', fontSize: '11px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
                       <ArrowUpCircle size={13} className={isUpdating ? 'animate-spin' : ''} />
-                      {isUpdating ? 'Pobieranie...' : 'Aktualizuj'}
+                      {isUpdating ? 'Pobieranie...' : 'Aktualizuj do stabilnej'}
                     </button>
                   </div>
                 </div>
@@ -705,7 +705,7 @@ function MyMods({ config }) {
                           title={`Zaktualizuj do ${matchingUpdate.newFilename}`}
                         >
                           <ArrowUpCircle size={14} className={isUpdating ? 'animate-spin' : ''} />
-                          {isUpdating ? 'Pobieranie...' : 'Aktualizuj'}
+                          {isUpdating ? 'Pobieranie...' : 'Aktualizuj do stabilnej'}
                         </button>
                       </div>
                     )}
