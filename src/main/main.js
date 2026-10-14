@@ -120,7 +120,7 @@ function writeConfig(config) {
   }
 }
 
-// Pobieranie najnowszej stabilnej wersji Fabric Loader z oficjalnego API
+// Pobieranie najnowszej stabilnej wersji Fabric Loader z oficjalnego API (wyłącznie wersje stabilne, nigdy beta)
 async function getLatestFabricLoader(mcVersion = '1.20.1') {
   try {
     const res = await axios.get(`https://meta.fabricmc.net/v2/versions/loader/${mcVersion}`, {
@@ -128,11 +128,14 @@ async function getLatestFabricLoader(mcVersion = '1.20.1') {
       headers: { 'User-Agent': 'Ciapongi-RP-Launcher' }
     });
     if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-      const stable = res.data.find(v => v.loader && v.loader.stable);
-      return stable ? stable.loader.version : res.data[0].loader.version;
+      // Wyłącznie wersje stabilne (loader.stable === true) - ignoruj jakiekolwiek bety / snapshoty
+      const stable = res.data.find(v => v.loader && v.loader.stable === true);
+      if (stable && stable.loader && stable.loader.version) {
+        return stable.loader.version;
+      }
     }
   } catch (err) {
-    console.error('Błąd pobierania najnowszej wersji Fabric Loader:', err.message);
+    console.error('Błąd pobierania najnowszej stabilnej wersji Fabric Loader:', err.message);
   }
   return null;
 }
@@ -1635,7 +1638,7 @@ ipcMain.handle('add-local-project', async (event, { filePath, projectType }) => 
   }
 });
 
-// Sprawdzanie dostępnych aktualizacji dla zainstalowanych modów przez Modrinth API
+// Sprawdzanie dostępnych aktualizacji wyłącznie dla modów dodanych przez gracza (z pominięciem paczki) przez Modrinth API (tylko wersje stabilne!)
 ipcMain.handle('check-mod-updates', async (event, { projectType } = {}) => {
   const config = readConfig();
   const gameDir = config.gameDir;
@@ -1646,16 +1649,56 @@ ipcMain.handle('check-mod-updates', async (event, { projectType } = {}) => {
   }
 
   try {
+    // 1. Zbuduj zbiór plików należących do oficjalnej paczki serwerowej (pack-manifest.json)
+    const packManifestPath = path.join(gameDir, 'pack-manifest.json');
+    const packFiles = new Set();
+    if (fs.existsSync(packManifestPath)) {
+      try {
+        const packArr = JSON.parse(fs.readFileSync(packManifestPath, 'utf8'));
+        for (const item of packArr) {
+          if (typeof item === 'string' && item.toLowerCase().startsWith('mods/')) {
+            const cleanName = path.basename(item).replace(/\.disabled$/i, '').toLowerCase();
+            packFiles.add(cleanName);
+          }
+        }
+      } catch (e) { }
+    }
+
+    // 2. Pobierz metadane własnych projektów gracza z user-manifest.json
+    const userManifestPath = path.join(gameDir, 'user-manifest.json');
+    let userProjects = [];
+    if (fs.existsSync(userManifestPath)) {
+      try {
+        userProjects = JSON.parse(fs.readFileSync(userManifestPath, 'utf8'));
+      } catch (e) { }
+    }
+
     const files = fs.readdirSync(modsDir).filter(f => f.endsWith('.jar') || f.endsWith('.jar.disabled'));
     const hashMap = new Map();
     const hashes = [];
 
     for (const f of files) {
+      const cleanBase = f.replace(/\.disabled$/i, '').toLowerCase();
+
+      // Wyklucz modyfikacje należące do oficjalnej paczki serwerowej!
+      if (packFiles.has(cleanBase)) {
+        continue;
+      }
+
       try {
         const fullPath = path.join(modsDir, f);
         const buf = fs.readFileSync(fullPath);
         const hash = crypto.createHash('sha1').update(buf).digest('hex');
-        hashMap.set(hash, f);
+
+        const userProj = userProjects.find(p => p.filename && p.filename.toLowerCase() === cleanBase);
+
+        hashMap.set(hash, {
+          filename: f,
+          cleanBase,
+          title: userProj ? userProj.title : f.replace(/\.jar(\.disabled)?$/i, ''),
+          icon_url: userProj ? userProj.icon_url : null,
+          savedProjectId: userProj ? userProj.id : null
+        });
         hashes.push(hash);
       } catch (e) { }
     }
@@ -1680,20 +1723,47 @@ ipcMain.handle('check-mod-updates', async (event, { projectType } = {}) => {
     const updates = [];
     if (res.data && typeof res.data === 'object') {
       for (const [oldHash, newVerData] of Object.entries(res.data)) {
-        const oldFile = hashMap.get(oldHash);
-        if (!oldFile || !newVerData || !newVerData.files) continue;
+        const modMeta = hashMap.get(oldHash);
+        if (!modMeta || !newVerData || !newVerData.files) continue;
 
-        const primaryFile = newVerData.files.find(f => f.primary) || newVerData.files[0];
+        // NIGDY NIE POBIERAJ BETY ANI ALFY:
+        // Jeśli Modrinth zwrócił wersję inną niż 'release', wyszukaj wersje projektu i znajdź najnowszy 'release'
+        let chosenVersion = newVerData;
+        if (newVerData.version_type !== 'release') {
+          try {
+            const vListRes = await axios.get(`https://api.modrinth.com/v2/project/${newVerData.project_id}/version?game_versions=["${targetMc}"]&loaders=["${targetLoader}"]`, {
+              headers: { 'User-Agent': 'Ciapongi-RP-Launcher' },
+              timeout: 8000
+            });
+            if (Array.isArray(vListRes.data)) {
+              const latestStable = vListRes.data.find(v => v.version_type === 'release');
+              if (latestStable) {
+                chosenVersion = latestStable;
+              } else {
+                // Dostępne są wyłącznie bety/alfa dla tej wersji gry — nie proponuj niestabilnych aktualizacji!
+                continue;
+              }
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+
+        const primaryFile = chosenVersion.files.find(f => f.primary) || chosenVersion.files[0];
         if (!primaryFile) continue;
 
         if (primaryFile.hashes && primaryFile.hashes.sha1 !== oldHash) {
           updates.push({
-            oldFilename: oldFile,
+            oldFilename: modMeta.filename,
+            title: modMeta.title,
+            icon_url: modMeta.icon_url,
+            projectId: chosenVersion.project_id,
             newFilename: primaryFile.filename,
-            newVersion: newVerData.version_number || newVerData.name,
+            newVersion: chosenVersion.version_number || chosenVersion.name,
+            versionType: chosenVersion.version_type || 'release',
             downloadUrl: primaryFile.url,
-            projectId: newVerData.project_id,
-            changelog: newVerData.changelog || ''
+            changelog: chosenVersion.changelog || '',
+            datePublished: chosenVersion.date_published || null
           });
         }
       }
@@ -1701,8 +1771,50 @@ ipcMain.handle('check-mod-updates', async (event, { projectType } = {}) => {
 
     return { success: true, updates };
   } catch (err) {
-    console.error('Błąd sprawdzania aktualizacji modów:', err.message);
+    console.error('Błąd sprawdzania aktualizacji modów gracza:', err.message);
     return { success: false, error: err.message, updates: [] };
+  }
+});
+
+// Pobieranie listy dostępnych stabilnych wersji (Release) danej modyfikacji z Modrinth do wyboru przez użytkownika
+ipcMain.handle('get-mod-available-versions', async (event, { projectId }) => {
+  const config = readConfig();
+  const targetMc = config.minecraftVersion || '1.20.1';
+  const targetLoader = config.loader || 'fabric';
+
+  try {
+    const res = await axios.get(`https://api.modrinth.com/v2/project/${projectId}/version?game_versions=["${targetMc}"]&loaders=["${targetLoader}"]`, {
+      headers: { 'User-Agent': 'Ciapongi-RP-Launcher' },
+      timeout: 10000
+    });
+
+    if (!Array.isArray(res.data)) {
+      return { success: false, error: 'Nieprawidłowa odpowiedź z API Modrinth' };
+    }
+
+    // Wyłącznie oficjalne stabilne wersje (Release), ignorujemy bety i alfy
+    const stableVersions = res.data
+      .filter(v => v.version_type === 'release')
+      .map(v => {
+        const primaryFile = v.files.find(f => f.primary) || v.files[0];
+        return {
+          id: v.id,
+          name: v.name,
+          versionNumber: v.version_number,
+          versionType: v.version_type,
+          datePublished: v.date_published,
+          changelog: v.changelog || '',
+          filename: primaryFile ? primaryFile.filename : null,
+          downloadUrl: primaryFile ? primaryFile.url : null,
+          size: primaryFile ? primaryFile.size : 0
+        };
+      })
+      .filter(v => v.downloadUrl);
+
+    return { success: true, versions: stableVersions };
+  } catch (err) {
+    console.error('Błąd pobierania dostępnych wersji moda:', err.message);
+    return { success: false, error: err.message };
   }
 });
 

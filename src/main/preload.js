@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('api', {
   checkModUpdates: (projectType) => ipcRenderer.invoke('check-mod-updates', { projectType }),
   updateMod: (updateData) => ipcRenderer.invoke('update-mod', updateData),
   updateAllMods: (updatesList) => ipcRenderer.invoke('update-all-mods', { updatesList }),
+  getModAvailableVersions: (projectId) => ipcRenderer.invoke('get-mod-available-versions', { projectId }),
 
   // Modrinth API (Legacy)
   searchMods: (query, mcVersion) => ipcRenderer.invoke('search-mods', { query, mcVersion }),
