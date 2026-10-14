@@ -1,5 +1,15 @@
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.1.6]
+### Dodano (Added)
+- **Dynamiczne pobieranie najnowszej wersji Fabric Loader:** Launcher sprawdza oficjalne API meta.fabricmc.net i automatycznie instaluje oraz uruchamia najnowszą stabilną wersję Fabric.
+- **Aktualizacje modyfikacji w locie (Modrinth API):** Dodano funkcję sprawdzania aktualizacji zainstalowanych modów za pomocą sum kontrolnych SHA1 i API Modrinth w zakładce modów, z możliwością aktualizacji pojedynczej lub masowej.
+- **Zabezpieczenie przed duplikatami:** Podmiana modyfikacji automatycznie usuwa poprzednie wersje plików `.jar` oraz `.jar.disabled`, zapobiegając konfliktom.
+- **Optymalizacje paczki modów:** Dołączono modyfikację `BadOptimizations`, `Freecam` oraz `Cull Less Leaves` i wyczyszczono zduplikowane nazwy plików w instancji.
+
+### Poprawiono (Fixed)
+- **Przezroczysta ikona:** Całkowite usunięcie tła w sztuczną szarą kratkę (checkerboard) i wygenerowanie wektorowej ikony monoraila z prawdziwym, 100% przezroczystym kanałem alfa dla Windows i Linux.
+
 ## [1.1.5]
 ### Zmieniono (Changed)
 - **Migracja źródła paczek serwera na ciapongi.szablix.pl:** Pobieranie paczek oraz lista wydań przeniesione z GitHub na bezpośrednie API `ciapongi.szablix.pl/paczki`. Umożliwia to wybór i pobieranie także starszych wersji paczki serwerowej.
