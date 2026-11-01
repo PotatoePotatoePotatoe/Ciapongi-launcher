@@ -1,5 +1,10 @@
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.1.7]
+### Zmieniono (Changed)
+- **Nowy pakiet 10 modów optymalizacyjnych:** Zaktualizowano 1-kliknięciowy pakiet w ustawieniach. Dodano `C2ME` (wielowątkowe ładowanie chunków przy szybkiej jeździe pociągami), `BadOptimizations` (szybsze renderowanie nieba, oświetlenia i scoreboardu) oraz `AsyncParticles` (asynchroniczne cząsteczki dymu i pary).
+- **Usunięcie konfliktów i duplikatów:** Wyczyszczono mody dublujące zawartość bazowej paczki 2.7 z serwera (`Indium`, `ModernFix`, `YACL`, `Cloth Config`, `Entity Culling`) oraz usunięto `Cull Less Leaves` konfliktujący z `More Culling`.
+
 ## [1.1.6]
 ### Dodano (Added)
 - **Dynamiczne pobieranie najnowszej wersji Fabric Loader:** Launcher sprawdza oficjalne API meta.fabricmc.net i automatycznie instaluje oraz uruchamia najnowszą stabilną wersję Fabric.
