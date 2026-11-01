@@ -49,19 +49,16 @@ function Settings({ config, onSave }) {
     setInstallStatus('Inicjalizacja pobierania pakietu optymalizacji...');
 
     const modsToInstall = [
-      { id: 'yacl', name: 'YetAnotherConfigLib (YACL)' },
-      { id: 'cloth-config', name: 'Cloth Config API' },
-      { id: 'indium', name: 'Indium' },
-      { id: 'modernfix', name: 'ModernFix' },
-      { id: 'ebe', name: 'Enhanced Block Entities' },
-      { id: 'cull-less-leaves', name: 'Cull Less Leaves' },
-      { id: 'fastanim', name: 'FastAnim' },
-      { id: 'ferrite-core', name: 'FerriteCore' },
-      { id: 'krypton', name: 'Krypton' },
+      { id: 'c2me-fabric', name: 'C2ME (Concurrent Chunk Management Engine)' },
+      { id: 'badoptimizations', name: 'BadOptimizations' },
+      { id: 'asyncparticles', name: 'AsyncParticles' },
       { id: 'lithium', name: 'Lithium' },
+      { id: 'ferrite-core', name: 'FerriteCore' },
+      { id: 'ebe', name: 'Enhanced Block Entities (EBE)' },
+      { id: 'fastanim', name: 'FastAnim' },
+      { id: 'krypton', name: 'Krypton' },
       { id: 'memoryleakfix', name: 'Memory Leak Fix' },
-      { id: 'noisium', name: 'Noisiumed' },
-      { id: 'entityculling', name: 'Entity Culling' }
+      { id: 'noisium', name: 'Noisium' }
     ];
 
     let installedCount = 0;
@@ -745,20 +742,20 @@ function Settings({ config, onSave }) {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ fontWeight: '700', fontSize: '12px', color: '#38bdf8' }}>Lithium & FerriteCore</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Optymalizacja silnika TPS & redukcja zużycia RAM modeli o 50%.</div>
+                    <div style={{ fontWeight: '700', fontSize: '12px', color: '#38bdf8' }}>C2ME & Lithium</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Wielowątkowe ładowanie chunków dla pociągów & wysoki TPS silnika.</div>
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ fontWeight: '700', fontSize: '12px', color: '#38bdf8' }}>EntityCulling & EBE</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Optymalne renderowanie pociągów MTR, skrzyń i niewidocznych bytów.</div>
+                    <div style={{ fontWeight: '700', fontSize: '12px', color: '#38bdf8' }}>FerriteCore & MemoryLeakFix</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Redukcja RAM modeli o 50% & ochrona przed wyciekami pamięci.</div>
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ fontWeight: '700', fontSize: '12px', color: '#38bdf8' }}>ModernFix & FastAnim</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Szybsze o 50% ładowanie Create & optymalne animacje bytów.</div>
+                    <div style={{ fontWeight: '700', fontSize: '12px', color: '#38bdf8' }}>EBE & BadOptimizations</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Optymalne modele stacji/skrzyń & stabilniejszy frametime i oświetlenie.</div>
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ fontWeight: '700', fontSize: '12px', color: '#38bdf8' }}>Krypton, Noisium, MemoryLeakFix, CullLeaves</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Szybsza sieć, generowanie biomów i naprawa wycieków pamięci.</div>
+                    <div style={{ fontWeight: '700', fontSize: '12px', color: '#38bdf8' }}>Krypton, Noisium, FastAnim & AsyncParticles</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Szybka sieć, generator terenu, płynne animacje i cząsteczki dymu.</div>
                   </div>
                 </div>
 
