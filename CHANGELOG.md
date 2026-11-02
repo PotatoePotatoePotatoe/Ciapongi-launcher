@@ -1,6 +1,14 @@
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
 ## [1.1.7]
+### Poprawiono (Fixed)
+- **Samoczynna aktualizacja (Auto-Updater) na Linuxie:**
+  - Naprawiono wybór assetu w `github-updater.js` — na Linuksie `.AppImage` ma bezwzględny priorytet nad `.tar.gz`, co zapobiega pobieraniu archiwum zamiast właściwego pliku wykonywalnego.
+  - Wyeliminowano błąd jądra Linux `ETXTBSY: Text file busy` oraz `EXDEV: cross-device link` — podmiana działającego AppImage realizowana jest teraz w tym samym katalogu docelowym z użyciem atomowego `fs.renameSync` i `fs.unlinkSync`.
+  - Pełna automatyzacja: przy włączonej opcji `autoUpdateLauncher` po pobraniu nowej wersji launcher automatycznie podmienia plik i restartuje aplikację (lub odkłada podmianę, jeśli Minecraft jest uruchomiony).
+  - Nowy pasek powiadomień w głównym oknie launchera wyświetlający stan pobierania (z % postępu) oraz instalacji.
+  - Usunięto błąd `ReferenceError: logToFile is not defined` w kodzie Linuksa.
+
 ### Zmieniono (Changed)
 - **Nowy pakiet 10 modów optymalizacyjnych:** Zaktualizowano 1-kliknięciowy pakiet w ustawieniach. Dodano `C2ME` (wielowątkowe ładowanie chunków przy szybkiej jeździe pociągami), `BadOptimizations` (szybsze renderowanie nieba, oświetlenia i scoreboardu) oraz `AsyncParticles` (asynchroniczne cząsteczki dymu i pary).
 - **Usunięcie konfliktów i duplikatów:** Wyczyszczono mody dublujące zawartość bazowej paczki 2.7 z serwera (`Indium`, `ModernFix`, `YACL`, `Cloth Config`, `Entity Culling`) oraz usunięto `Cull Less Leaves` konfliktujący z `More Culling`.

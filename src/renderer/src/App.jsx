@@ -80,6 +80,7 @@ function App() {
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [showAddOfflineModal, setShowAddOfflineModal] = useState(false);
   const [launcherUpdateStatus, setLauncherUpdateStatus] = useState('idle'); // idle | available | downloaded
+  const [launcherUpdateEvent, setLauncherUpdateEvent] = useState(null);
 
   // Aplikowanie motywu przy zmianie config.theme
   useEffect(() => {
@@ -108,11 +109,12 @@ function App() {
     return () => { unsubStatus(); unsubPackSync(); unsubLaunch(); unsubLog(); };
   }, []);
 
-  // Globalny listener aktualizacji launchera — badge w sidebarze
+  // Globalny listener aktualizacji launchera — badge w sidebarze oraz baner statusu
   useEffect(() => {
     if (window.api && window.api.onLauncherUpdateEvent) {
       const cleanup = window.api.onLauncherUpdateEvent((data) => {
-        if (data.status === 'available' || data.status === 'downloaded') {
+        setLauncherUpdateEvent(data);
+        if (data.status === 'available' || data.status === 'downloaded' || data.status === 'downloading' || data.status === 'installing') {
           setLauncherUpdateStatus(data.status);
         } else if (data.status === 'not-available') {
           setLauncherUpdateStatus('idle');
@@ -286,6 +288,71 @@ function App() {
           <button className="window-btn close-btn" onClick={() => window.api.close()}><X size={14} /></button>
         </div>
       </div>
+
+      {/* Baner aktualizacji launchera */}
+      {launcherUpdateEvent && launcherUpdateEvent.status === 'downloading' && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(56,189,248,0.18), rgba(99,102,241,0.18))',
+          borderBottom: '1px solid rgba(56,189,248,0.3)',
+          padding: '6px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '12px',
+          color: '#38bdf8',
+          zIndex: 100
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <RefreshCw size={14} className="spin" />
+            <span>Pobieranie aktualizacji launchera... ({launcherUpdateEvent.progress || 0}%)</span>
+          </div>
+          <div style={{ width: '120px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+            <div style={{ width: `${launcherUpdateEvent.progress || 0}%`, height: '100%', background: '#38bdf8', transition: 'width 0.2s' }}></div>
+          </div>
+        </div>
+      )}
+
+      {launcherUpdateEvent && launcherUpdateEvent.status === 'installing' && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(34,197,94,0.18), rgba(56,189,248,0.18))',
+          borderBottom: '1px solid rgba(34,197,94,0.3)',
+          padding: '7px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          fontSize: '12px',
+          fontWeight: '600',
+          color: '#4ade80',
+          zIndex: 100
+        }}>
+          <RefreshCw size={14} className="spin" />
+          <span>Aktualizacja pobrana! Ponowne uruchamianie nowej wersji launchera...</span>
+        </div>
+      )}
+
+      {launcherUpdateEvent && launcherUpdateEvent.status === 'downloaded' && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(34,197,94,0.18), rgba(16,185,129,0.18))',
+          borderBottom: '1px solid rgba(34,197,94,0.3)',
+          padding: '6px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '12px',
+          color: '#4ade80',
+          zIndex: 100
+        }}>
+          <span>🎉 Pobrano aktualizację launchera! Kliknij, aby zastosować i zrestartować.</span>
+          <button
+            onClick={() => window.api.installLauncherUpdate()}
+            className="btn btn-primary"
+            style={{ padding: '2px 10px', fontSize: '11px', height: '26px' }}
+          >
+            Zrestartuj teraz
+          </button>
+        </div>
+      )}
 
       <div className="app-container">
         {/* Sidebar */}

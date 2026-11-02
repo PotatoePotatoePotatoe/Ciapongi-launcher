@@ -46,7 +46,10 @@ function pickAsset(assets) {
     return setup || portable || null;
   }
   if (process.platform === 'linux') {
-    return assets.find(a => a.name && (a.name.endsWith('.AppImage') || a.name.endsWith('.tar.gz'))) || null;
+    // Priorytet dla AppImage — jedyny format wspierający bezpośrednią podmianę w locie na Linuksie
+    const appImage = assets.find(a => a.name && a.name.endsWith('.AppImage'));
+    if (appImage) return appImage;
+    return assets.find(a => a.name && a.name.endsWith('.tar.gz')) || null;
   }
   return null;
 }
@@ -209,7 +212,7 @@ async function fetchRelease(logToFile) {
  * @param {boolean}  autoDownload  czy pobierać automatycznie
  * @param {Function} logToFile  funkcja logowania
  */
-async function checkForUpdates(sendEvent, autoDownload, logToFile) {
+async function checkForUpdates(sendEvent, autoDownload, logToFile, isGameRunning) {
   const log = logToFile || console.log;
   if (!app.isPackaged) {
     log('[Updater] Dev mode — updater disabled.');
@@ -256,7 +259,22 @@ async function checkForUpdates(sendEvent, autoDownload, logToFile) {
   });
 
   if (autoDownload) {
-    await startDownload(asset, sendEvent, log);
+    const downloadedPath = await startDownload(asset, sendEvent, log);
+    if (downloadedPath) {
+      const gameRunning = typeof isGameRunning === 'function' ? isGameRunning() : false;
+      // Na Linuksie, gdy to AppImage i gra nie jest włączona, aktualizujemy i restartujemy automatycznie!
+      if (process.platform === 'linux' && (process.env.APPIMAGE || downloadedPath.endsWith('.AppImage'))) {
+        if (!gameRunning) {
+          log('[Updater] Auto-update Linux: aktualizacja pobrana, automatyczna instalacja i restart...');
+          sendEvent({ status: 'installing', version: remoteTag.replace(/^v/, '') });
+          setTimeout(() => {
+            installUpdate(downloadedPath, log);
+          }, 800);
+        } else {
+          log('[Updater] Gra jest uruchomiona — instalacja aktualizacji odłożona do jej zamknięcia.');
+        }
+      }
+    }
   }
 }
 
@@ -277,9 +295,11 @@ async function startDownload(asset, sendEvent, logToFile) {
     downloadedFilePath = destPath;
     log('[Updater] Pobieranie zakończone: ' + destPath);
     sendEvent({ status: 'downloaded', filePath: destPath, assetName: asset.name });
+    return destPath;
   } catch (err) {
     log('[Updater] Błąd pobierania: ' + err.message);
     sendEvent({ status: 'error', error: 'Błąd pobierania: ' + err.message });
+    return null;
   }
 }
 
@@ -308,25 +328,69 @@ function installUpdate(filePath, logToFile) {
       // Daj instalatorowi 1.5s na start zanim zamkniemy launcher
       setTimeout(() => app.exit(0), 1500);
     });
-  } else if (process.platform === 'linux' && process.env.APPIMAGE && file.endsWith('.AppImage')) {
-    // Automatyczna podmiana AppImage na Linuxie
+  } else if (process.platform === 'linux' && (process.env.APPIMAGE || file.endsWith('.AppImage'))) {
+    // Bezpieczna atomowa podmiana AppImage na Linuxie bez błędu ETXTBSY i EXDEV
     try {
-      const currentAppImage = process.env.APPIMAGE;
-      log(`[Updater] Podmiana obecnego AppImage: ${currentAppImage} na ${file}`);
+      let currentAppImage = process.env.APPIMAGE;
+      if (!currentAppImage && process.env.ARGV0 && process.env.ARGV0.endsWith('.AppImage') && fs.existsSync(process.env.ARGV0)) {
+        currentAppImage = process.env.ARGV0;
+      }
 
-      fs.copyFileSync(file, currentAppImage);
+      if (!currentAppImage || !fs.existsSync(currentAppImage)) {
+        log('[Updater] Brak ścieżki do obecnego pliku AppImage, otwieram pobrany plik w folderze: ' + file);
+        shell.showItemInFolder(file);
+        return;
+      }
+
+      try {
+        currentAppImage = fs.realpathSync(currentAppImage);
+      } catch (_) {}
+
+      log(`[Updater] Bezpieczna podmiana AppImage: ${currentAppImage} z pobranego ${file}`);
+
+      const targetDir = path.dirname(currentAppImage);
+      const targetTemp = path.join(targetDir, `.${path.basename(currentAppImage)}.update-${Date.now()}`);
+
+      // 1. Kopiujemy plik do tego samego katalogu docelowego (omija błąd EXDEV cross-device link)
+      fs.copyFileSync(file, targetTemp);
+      fs.chmodSync(targetTemp, 0o755);
+
+      // 2. Unlink starego pliku + atomic rename nowego (omija błąd jądra Linux ETXTBSY: Text file busy)
+      try {
+        fs.unlinkSync(currentAppImage);
+      } catch (uErr) {
+        log('[Updater] Informacja unlinkSync starego AppImage: ' + uErr.message);
+      }
+      fs.renameSync(targetTemp, currentAppImage);
       fs.chmodSync(currentAppImage, 0o755);
 
+      // 3. Czyszczenie pobranego pliku z /tmp
+      try {
+        if (file !== currentAppImage && fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+      } catch (_) {}
+
+      log('[Updater] Plik AppImage został pomyślnie podmieniony! Restartowanie launchera...');
+
+      // 4. Uruchomienie zaktualizowanego AppImage w wyczyszczonym środowisku AppImage
       const { spawn } = require('child_process');
-      const child = spawn(currentAppImage, [], {
+      const cleanEnv = { ...process.env };
+      delete cleanEnv.APPDIR;
+      delete cleanEnv.OWD;
+
+      const child = spawn(currentAppImage, process.argv.slice(1), {
         detached: true,
-        stdio: 'ignore'
+        stdio: 'ignore',
+        env: cleanEnv
       });
       child.unref();
 
-      app.exit(0);
+      setTimeout(() => {
+        app.exit(0);
+      }, 300);
     } catch (err) {
-      log('[Updater] Nie udało się podmienić AppImage: ' + err.message);
+      log('[Updater] Błąd podczas podmiany AppImage: ' + err.message);
       shell.showItemInFolder(file);
     }
   } else {
@@ -334,4 +398,8 @@ function installUpdate(filePath, logToFile) {
   }
 }
 
-module.exports = { checkForUpdates, startDownload, installUpdate, fetchRelease, pickAsset };
+function getDownloadedUpdate() {
+  return downloadedFilePath;
+}
+
+module.exports = { checkForUpdates, startDownload, installUpdate, fetchRelease, pickAsset, getDownloadedUpdate };

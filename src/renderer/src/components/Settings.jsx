@@ -164,6 +164,8 @@ function Settings({ config, onSave }) {
           setUpdaterMessage('Posiadasz najnowszą wersję.');
         } else if (data.status === 'downloaded') {
           setUpdaterMessage('Gotowe do instalacji. Zrestartuj launcher.');
+        } else if (data.status === 'installing') {
+          setUpdaterMessage('Instalowanie aktualizacji i ponowne uruchamianie...');
         }
       });
       return cleanup;

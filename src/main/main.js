@@ -195,6 +195,10 @@ function sendUpdateEvent(data) {
   if (mainWindow) mainWindow.webContents.send('launcher-update-event', data);
 }
 
+function isGameRunning() {
+  return minecraftProcess !== null;
+}
+
 function setupLauncherUpdater() {
   if (!app.isPackaged) {
     fsUtils.logToFile('[GithubUpdater] Dev mode — updater disabled.');
@@ -202,7 +206,7 @@ function setupLauncherUpdater() {
   }
   const config = readConfig();
   const autoDownload = config.autoUpdateLauncher !== false;
-  githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, fsUtils.logToFile)
+  githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, fsUtils.logToFile, isGameRunning)
     .catch(err => fsUtils.logToFile('[GithubUpdater] Init check error: ' + err));
 }
 
@@ -210,7 +214,7 @@ ipcMain.handle('check-for-launcher-updates', async () => {
   try {
     const config = readConfig();
     const autoDownload = config.autoUpdateLauncher !== false;
-    await githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, fsUtils.logToFile);
+    await githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, fsUtils.logToFile, isGameRunning);
     return { success: true };
   } catch (err) {
     fsUtils.logToFile('[GithubUpdater] Manual check error: ' + err);
@@ -2398,6 +2402,21 @@ ipcMain.handle('launch-game', async () => {
       if (mainWindow) {
         mainWindow.show();
         mainWindow.focus();
+      }
+
+      // Jeśli podczas rozgrywki pobrano w tle nową wersję launchera, instalujemy ją po wyłączeniu gry
+      try {
+        const pendingUpdate = githubUpdater.getDownloadedUpdate ? githubUpdater.getDownloadedUpdate() : null;
+        const config = readConfig();
+        if (pendingUpdate && config.autoUpdateLauncher !== false && process.platform === 'linux') {
+          fsUtils.logToFile('[SYSTEM] Gra zakończona. Uruchamianie odłożonej aktualizacji launchera...');
+          sendUpdateEvent({ status: 'installing' });
+          setTimeout(() => {
+            githubUpdater.installUpdate(pendingUpdate, fsUtils.logToFile);
+          }, 1000);
+        }
+      } catch (e) {
+        fsUtils.logToFile('[SYSTEM] Błąd instalacji odłożonej aktualizacji: ' + e.message);
       }
     });
 

@@ -176,7 +176,7 @@ function setupLauncherUpdater() {
   }
   const config = readConfig();
   const autoDownload = config.autoUpdateLauncher !== false;
-  githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, logToFile)
+  githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, fsUtils.logToFile)
     .catch(err => fsUtils.logToFile('[GithubUpdater] Init check error: ' + err));
 }
 
@@ -184,7 +184,7 @@ ipcMain.handle('check-for-launcher-updates', async () => {
   try {
     const config = readConfig();
     const autoDownload = config.autoUpdateLauncher !== false;
-    await githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, logToFile);
+    await githubUpdater.checkForUpdates(sendUpdateEvent, autoDownload, fsUtils.logToFile);
     return { success: true };
   } catch (err) {
     fsUtils.logToFile('[GithubUpdater] Manual check error: ' + err);
@@ -194,7 +194,7 @@ ipcMain.handle('check-for-launcher-updates', async () => {
 
 ipcMain.handle('install-launcher-update', () => {
   try {
-    githubUpdater.installUpdate(null, logToFile);
+    githubUpdater.installUpdate(null, fsUtils.logToFile);
     return { success: true };
   } catch (err) {
     fsUtils.logToFile('[GithubUpdater] Install error: ' + err);
