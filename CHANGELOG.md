@@ -1,5 +1,11 @@
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [1.1.9]
+### Dodano (Added)
+- **Wyszukiwarka zainstalowanych modów i shaderów:** Dodano pasek wyszukiwania na żywo w zakładce „Moje Pliki” działający dla wszystkich kategorii: własnych modów, oficjalnych modów z paczki serwerowej Ciapongi RP, shaderów oraz paczek zasobów. Umożliwia błyskawiczne filtrowanie setek modów po tytule lub nazwie pliku.
+- **Przycisk bezpośredniego otwierania folderu:** Dodano w panelu „Moje Pliki” przycisk szybkiego otwierania odpowiedniego katalogu w menedżerze plików (`mods`, `shaderpacks`, `resourcepacks`).
+- **Rozszerzenie API `openFolder`:** Backend wspiera teraz bezpośrednie otwieranie podkatalogów `shaderpacks` oraz `resourcepacks`.
+
 ## [1.1.8]
 ### Poprawiono (Fixed)
 - **Samoczynna aktualizacja (Auto-Updater) na Linuxie:**

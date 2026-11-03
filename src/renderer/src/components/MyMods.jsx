@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Trash2, FolderHeart, UploadCloud, RefreshCw, ArrowUpCircle, CheckCircle2, X, Layers } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Trash2, FolderHeart, UploadCloud, RefreshCw, ArrowUpCircle, CheckCircle2, X, Layers, Search, FolderOpen } from 'lucide-react';
 
 function VersionPickerModal({ isOpen, onClose, mod, onSelectVersion, isUpdating }) {
   const [versions, setVersions] = useState([]);
@@ -183,6 +183,7 @@ function VersionPickerModal({ isOpen, onClose, mod, onSelectVersion, isUpdating 
 function MyMods({ config }) {
   const [activeType, setActiveType] = useState('mod'); // 'mod', 'shader', 'resourcepack'
   const [projects, setProjects] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
@@ -206,6 +207,33 @@ function MyMods({ config }) {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  useEffect(() => {
+    setSearchQuery('');
+  }, [activeType]);
+
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return projects;
+    const q = searchQuery.toLowerCase().trim();
+    return projects.filter(p => {
+      const title = (p.title || '').toLowerCase();
+      const filename = (p.filename || '').toLowerCase();
+      const desc = (p.description || '').toLowerCase();
+      return title.includes(q) || filename.includes(q) || desc.includes(q);
+    });
+  }, [projects, searchQuery]);
+
+  const handleOpenFolder = () => {
+    let subfolder = 'mods';
+    if (activeType === 'shader') {
+      subfolder = 'shaderpacks';
+    } else if (activeType === 'resourcepack' || activeType === 'pack-resourcepack') {
+      subfolder = 'resourcepacks';
+    }
+    if (window.api && window.api.openFolder) {
+      window.api.openFolder(subfolder);
+    }
+  };
 
   const handleCheckUpdates = async () => {
     setCheckingUpdates(true);
@@ -493,21 +521,111 @@ function MyMods({ config }) {
         >
           🌈 Shadery
         </button>
+      </div>
 
-        {activeType === 'mod' && (
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+      {/* Pasek narzędzi: Wyszukiwarka oraz Otwórz Folder */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        flexWrap: 'wrap'
+      }}>
+        {/* Pole wyszukiwania */}
+        <div style={{
+          position: 'relative',
+          flex: '1 1 280px',
+          maxWidth: '460px',
+          display: 'flex',
+          alignItems: 'center'
+        }}>
+          <Search size={16} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <input
+            type="text"
+            className="form-input"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={
+              activeType === 'shader'
+                ? 'Szukaj shaderów (np. Bliss, Complementary)...'
+                : activeType.includes('resourcepack')
+                ? 'Szukaj paczek zasobów...'
+                : activeType === 'pack-mod'
+                ? 'Szukaj modów z paczki serwerowej (np. Create, Iris)...'
+                : 'Szukaj swoich modów (nazwa lub plik .jar)...'
+            }
+            style={{
+              width: '100%',
+              height: '40px',
+              paddingLeft: '40px',
+              paddingRight: searchQuery ? '36px' : '14px',
+              fontSize: '13px'
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '4px'
+              }}
+              title="Wyczyść wyszukiwanie"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Przyciski akcji */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
+          {searchQuery.trim() && (
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '4px' }}>
+              Wyniki: <strong style={{ color: 'var(--text-main)' }}>{filteredProjects.length}</strong> z {projects.length}
+            </span>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={handleOpenFolder}
+            style={{ height: '40px', padding: '0 16px', fontSize: '12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            title={
+              activeType === 'shader'
+                ? 'Otwórz folder shaderpacks w eksploratorze plików'
+                : activeType.includes('resourcepack')
+                ? 'Otwórz folder resourcepacks w eksploratorze plików'
+                : 'Otwórz folder mods w eksploratorze plików'
+            }
+          >
+            <FolderOpen size={16} />
+            {activeType === 'shader'
+              ? 'Otwórz folder shaderów'
+              : activeType.includes('resourcepack')
+              ? 'Otwórz folder zasobów'
+              : 'Otwórz folder modów'}
+          </button>
+
+          {activeType === 'mod' && (
             <button
               type="button"
               className="btn btn-outline"
               onClick={handleCheckUpdates}
               disabled={checkingUpdates}
-              style={{ height: '36px', padding: '0 14px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ height: '40px', padding: '0 14px', fontSize: '12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <RefreshCw size={14} className={checkingUpdates ? 'animate-spin' : ''} />
               {checkingUpdates ? 'Sprawdzanie...' : 'Sprawdź aktualizacje modów'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Komunikat o statusie aktualizacji */}
@@ -634,10 +752,30 @@ function MyMods({ config }) {
             </p>
           </div>
         </div>
+      ) : filteredProjects.length === 0 ? (
+        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '48px', textAlign: 'center', borderColor: 'var(--border-color)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+            <Search size={24} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Brak wyników wyszukiwania</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
+              Nie znaleziono żadnej pozycji pasującej do zapytania <strong style={{ color: 'var(--text-main)' }}>"{searchQuery}"</strong>.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => setSearchQuery('')}
+            style={{ height: '34px', fontSize: '12px', padding: '0 14px', borderRadius: '8px', marginTop: '4px' }}
+          >
+            Wyczyść filtr wyszukiwania
+          </button>
+        </div>
       ) : (
         <div style={{ flexGrow: 1, overflowY: 'auto' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {projects.map(project => {
+            {filteredProjects.map(project => {
               const matchingUpdate = availableUpdates.find(u => {
                 const cleanOld = u.oldFilename.replace(/\.disabled$/i, '').toLowerCase();
                 const cleanProj = project.filename.replace(/\.disabled$/i, '').toLowerCase();

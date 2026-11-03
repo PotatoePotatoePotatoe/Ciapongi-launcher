@@ -415,6 +415,10 @@ ipcMain.handle('open-folder', async (event, subfolder) => {
     targetPath = path.join(targetPath, 'saves');
   } else if (subfolder === 'screenshots') {
     targetPath = path.join(targetPath, 'screenshots');
+  } else if (subfolder === 'shaderpacks' || subfolder === 'shaders' || subfolder === 'shader') {
+    targetPath = path.join(targetPath, 'shaderpacks');
+  } else if (subfolder === 'resourcepacks') {
+    targetPath = path.join(targetPath, 'resourcepacks');
   }
 
   try {
