@@ -1,8 +1,19 @@
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [2.0.0]
+### Zmieniono (Changed)
+- **Migracja z Electron + Node.js na natywny backend Rust + Tauri v2:** Całkowite przepisanie warstwy systemowej, pobierania gry i modyfikacji na natywny kod maszynowy (zużycie RAM mniejsze o ~40%, wielokrotnie szybsze uruchamianie i lżejsza paczka bez wbudowanego Chromium/Node.js).
+- **Błyskawiczny skaner modów ZIP EOCD/CD (`modrinth.rs`):** Bezpośredni odczyt wyłącznie pliku `fabric.mod.json` z nagłówków Central Directory archiwów `.jar` bez alokacji map wszystkich klas (zimny skan dziesiątek modów trwa kilka milisekund zamiast sekund na słabszych procesorach).
+- **Szybsza przeglądarka Modrinth:** Współdzielony klient HTTP/2 + `rustls`, równoległe wykonywanie zapytań do API i lokalnych skanów, krótkoterminowy cache wyników (TTL 60 s), deduplikacja zapytań w locie oraz debounce wyszukiwania `250 ms`.
+- **Migracja konfiguracji i zapis ustawień:** Automatyczna migracja lokalnego pliku `launcher-config-local.json` z wcześniejszych instalacji Electron (`v1.1.x`) oraz poprawka zapisu własnych flag JVM przy ręcznym kliknięciu „Zapisz teraz”.
+
+### Dodano (Added)
+- **Natywne wsparcie paczek `.deb` dla Linuksa** obok przenośnych `.AppImage` i archiwów `.tar.gz`.
+- **Ciche uruchamianie procesów pomocniczych na Windows (`CREATE_NO_WINDOW`):** Brak wyskakujących czarnych okien wiersza poleceń podczas wykrywania GPU, uruchamiania Javy lub aktualizacji.
+
 ## [1.1.9]
 ### Dodano (Added)
-- **Wyszukiwarka zainstalowanych modów i shaderów:** Dodano pasek wyszukiwania na żywo w zakładce „Moje Pliki” działający dla wszystkich kategorii: własnych modów, oficjalnych modów z paczki serwerowej Ciapongi RP, shaderów oraz paczek zasobów. Umożliwia błyskawiczne filtrowanie setek modów po tytule lub nazwie pliku.
+- **Wyszukiwarka zainstalowanych modów i shaderów:** Dodano pasek wyszukiwania na żywo w zakładce „Moje Pliki” działający dla wszystkich kategorii: własnych modów, oficjalnych modów z paczki serwerowej Ciapongi RP, shaderów oraz paczek zasobów. Umożliwia błyskawiczne filtrowanie setek modów po nazwie lub nazwie pliku z licznikiem pasujących wyników.
 - **Przycisk bezpośredniego otwierania folderu:** Dodano w panelu „Moje Pliki” przycisk szybkiego otwierania odpowiedniego katalogu w menedżerze plików (`mods`, `shaderpacks`, `resourcepacks`).
 - **Rozszerzenie API `openFolder`:** Backend wspiera teraz bezpośrednie otwieranie podkatalogów `shaderpacks` oraz `resourcepacks`.
 
@@ -111,12 +122,11 @@ Kolory podświetleń (Hover/Shadows): Usunięto sztywno zapisane, fioletowe cien
 ### Poprawiono (Fixed)
 - **Animacja ikony odświeżania:** Naprawiono brakującą klasę CSS `.spin` — ikona kręcąca się podczas sprawdzania i pobierania aktualizacji teraz działa poprawnie.
 - **Guard trybu deweloperskiego:** Updater launchera jest teraz automatycznie wyłączany gdy aplikacja uruchamiana jest przez `npm run dev`, eliminując fałszywe błędy podczas pracy nad kodem.
-- **Dynamiczne ustawienie auto-pobierania:** Opcja „Pobieraj aktualizacje automatycznie w tle" jest teraz odczytywana z aktualnego konfiga przy każdym sprawdzeniu, a nie tylko przy starcie aplikacji.
 
 ## [1.0.4]
 ### Dodano (Added)
 - **Niestandardowy Updater GitHub (`github-updater.js`):** Zastąpiono `electron-updater` własnym modułem odpytującym bezpośrednio GitHub API (`/releases/latest`). Nowe rozwiązanie nie wymaga pliku `latest.yml` i jest w pełni niezależne od zewnętrznych bibliotek — opiera się wyłącznie na wbudowanym module `https` Node.js.
-- **Badge aktualizacji w sidebarze:** Przy przycisku „Ustawienia" pojawia się teraz pulsująca kolorowa kropka gdy dostępna jest aktualizacja launchera (niebieska = dostępna, zielona = gotowa do instalacji), bez konieczności wchodzenia do zakładki Ustawień.
+- **Badge aktualizacji w sidebarze:** Przy przycisku „Ustawienia" pojawia się teraz pulsująca kolorowa kropka gdy dostępna jest aktualizacja launchera (niebieska = dostępna do pobrania, zielona = gotowa do instalacji), bez konieczności wchodzenia do zakładki Ustawień.
 
 ### Poprawiono (Fixed)
 - **Animacja ikony odświeżania:** Naprawiono brakującą klasę CSS `.spin` powodującą brak animacji obracającej się ikony podczas sprawdzania i pobierania aktualizacji.
@@ -139,3 +149,4 @@ Kolory podświetleń (Hover/Shadows): Usunięto sztywno zapisane, fioletowe cien
 - **Przeniesienie wyboru konta:** Informacja z głównego panelu została usunięta celem optymalizacji widoku na pełnym ekranie. Logowanie i przełączanie (Offline/Premium) odbywa się wyłącznie poprzez kliknięcie awatara/nicku gracza w lewym dolnym rogu ekranu.
 - **Odświeżenie systemu motywów:** Kolory akcentowe, podkreślenia menu oraz przyciski zostały w pełni dostosowane do działającego i ujednoliconego motywu (np. czerwony blask dla Crimson, niebieski dla Midnight Blue).
 - **Zoptymalizowany Panel Kont:** Menu zarządzania i dodawania kont zostało dopasowane do najnowszego designu motywów.
+

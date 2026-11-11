@@ -1,8 +1,8 @@
 <div align="center">
   <h1>🚄 CiapongiRP Launcher</h1>
   
-  **Oficjalny launcher dla społeczności CiapongiRP**  
-  Szybki, nowoczesny i zoptymalizowany launcher do gry Minecraft. Zbudowany z myślą o maksymalnej wydajności dla słabszych komputerów i niesamowitym designie!
+  **Oficjalny launcher dla społeczności CiapongiRP (Tauri v2 + Rust)**  
+  Natywny, ultralekki i szybki launcher do gry Minecraft. Zbudowany z myślą o maksymalnej wydajności dla słabszych komputerów i niskim zużyciu pamięci RAM!
 
   [**Pobierz Najnowszą Wersję (Windows & Linux)**](https://github.com/PotatoePotatoePotatoe/Ciapongi-launcher/releases/latest)
 </div>
@@ -13,40 +13,25 @@
 
 ## ✨ Główne Możliwości
 
-- 🚀 **Niesamowita Wydajność** – Zbudowany z naciskiem na minimalizację opóźnień. Zoptymalizowany dla najsłabszych komputerów za pomocą specjalnego profilu JVM **Ultra Potato**.
-- 🎨 **System Motywów** – Wybierz z 5 unikalnych motywów, w tym *Dark Violet*, *Emerald*, czy *Pure Black*.
-- 🔑 **Multi-Konto** – Obsługa pełnego przełączania pomiędzy kontami Premium (Microsoft) oraz kontami Offline w 2 sekundy (zapisywanie wielu profili jednocześnie).
-- 🔄 **Auto-Updater w Tle** – Launcher sam dba o swoje aktualizacje. Instaluje najnowsze łatki bez konieczności wychodzenia z aplikacji i manualnego pobierania z przeglądarki!
-- 🌐 **Automatyczne dodawanie serwera** – Przy pierwszym uruchomieniu launcher automatycznie podpina adres serwera `ciapongi.szablix.pl` do konfiguracji gry, eliminując konieczność ręcznego wpisywania IP przez graczy.
+- ⚡ **Natywny Rdzeń w Rust (Tauri v2)** – O ~40% mniejsze zużycie RAM i wielokrotnie szybszy start niż wersje oparte o Electrona. Błyskawiczny skan zainstalowanych modów `.jar` i zoptymalizowane profile JVM **Ultra Potato**.
+- 🎨 **System Motywów** – Wybierz z wbudowanych motywów (*Dark Violet*, *Emerald*, *Crimson*, *Midnight Blue*, *Pure Black*) lub własnej palety kolorów.
+- 🔑 **Multi-Konto** – Przełączanie pomiędzy kontami Premium (Microsoft OAuth2) oraz kontami Offline z automatyczną migracją ustawień z v1.x.
+- 🔄 **Auto-Updater w Tle** – Automatyczne sprawdzanie i aktualizacja launchera z `ciapongi.szablix.pl` / GitHub Releases.
+- 🌐 **Automatyczne dodawanie serwera** – Przy pierwszym uruchomieniu launcher podpina adres serwera `ciapongi.szablix.pl` do `servers.dat`.
 
 ## 📥 Jak pobrać?
-
-Aby zacząć grać na serwerze CiapongiRP:
 
 1. Przejdź do zakładki **[Releases](https://github.com/PotatoePotatoePotatoe/Ciapongi-launcher/releases/latest)**.
 2. Pobierz odpowiedni plik dla swojego systemu operacyjnego:
 
-### 🪟 Windows
-Pobierz plik `CiapongiRPLauncher Setup x.x.x x64.exe` lub `CiapongiRPLauncher x.x.x x64.exe` kliknij w niego dwukrotnie, zainstaluj i ciesz się grą!
+### 🪟 Windows (10/11 64-bit)
+- **Instalator (`CiapongiRPLauncher.Setup.2.0.0.exe`)** – standardowy kreator instalacji ze skrótami w Menu Start i na Pulpicie.
+- **Wersja przenośna (`CiapongiRPLauncher.2.0.0.exe`)** – pojedynczy plik `.exe` niewymagający instalacji.
 
-### 🐧 Linux (Instrukcja uniwersalna dla wszystkich dystrybucji)
-Wygenerowaliśmy pliki, które zadziałają na każdym Linuxie (Ubuntu, Linux Mint, Debian, Arch, Fedora itp.). Wybierz jedną z metod:
-
-**Metoda 1: Plik `.AppImage` (Zalecana i najprostsza)**
-Nowoczesny, przenośny format. Działa bez instalacji.
-1. Pobierz plik `CiapongiRPLauncher-x.x.x.AppImage`.
-2. Kliknij na plik prawym przyciskiem myszy -> wybierz **Właściwości** -> zakładka **Uprawnienia**.
-3. Zaznacz opcję: **Zezwól na wykonywanie pliku jako programu**.
-4. Dwukrotnie kliknij plik i graj!
-
-*(Wskazówka dla użytkowników **Ubuntu 22.04 / 24.04** i nowszych: Jeśli plik nie chce się uruchomić, otwórz terminal i wpisz `sudo apt install libfuse2`, aby doinstalować obsługę plików AppImage).*
-
-**Metoda 2: Plik `.tar.gz` (Dla zaawansowanych)**
-Gotowe pliki binarne do własnoręcznego ulokowania w systemie.
-1. Pobierz plik `ciapongi-rp-launcher-x.x.x.tar.gz`.
-2. Wypakuj archiwum w dowolnym folderze (np. `~/Gry/CiapongiLauncher`).
-3. Wejdź do wypakowanego folderu, nadaj plikowi `ciapongi-rp-launcher` uprawnienia do uruchamiania i odpal go.
-
+### 🐧 Linux
+- **`.AppImage` (`CiapongiRPLauncher-2.0.0.AppImage`)** – uniwersalny format przenośny dla każdej dystrybucji (obsługuje automatyczną podmianę przy aktualizacjach).
+- **`.deb` (`CiapongiRPLauncher_2.0.0_amd64.deb`)** – natywna paczka instalacyjna dla Ubuntu, Debian i Linux Mint (`sudo apt install ./CiapongiRPLauncher_2.0.0_amd64.deb`).
+- **`.tar.gz` (`ciapongi-rp-launcher-2.0.0.tar.gz`)** – archiwum z natywną binarką do wypakowania do wybranego folderu.
 
 ## ⚙️ Wymagania Sprzętowe
 
@@ -54,23 +39,18 @@ Gotowe pliki binarne do własnoręcznego ulokowania w systemie.
 | :--- | :--- | :--- |
 | **Pamięć RAM** | 4 GB | 8 GB+ |
 | **System** | Windows 10/11 (64-bit), Linux | Windows 11 (64-bit), Linux |
-| **Java** | Java 17/21 | Java 21 |
+| **Java** | Pobierana automatycznie (Adoptium Java 17/21) | Java 17 / 21 |
 
 ## 🛠️ Stack Technologiczny
 
-Projekt został zbudowany przez entuzjastę dla graczy.
-- **Frontend:** React, Vanilla CSS, Lucide React (ikony).
-- **Backend:** Node.js, Electron.
-- **Wydania:** Automatyzacja przy pomocy `electron-builder` i `electron-updater`.
-- **Moduł MC:** `minecraft-launcher-core` oraz komunikacja IPC.
+- **Frontend:** React, Vite, Vanilla CSS, Lucide React.
+- **Backend:** Rust, Tauri v2, Tokio, Reqwest (`rustls` + HTTP/2), Rayon.
+- **Wydania:** GitHub Actions (natywne kompilacje na `ubuntu-22.04` oraz `windows-latest`).
 
 ## 🙋‍♂️ Twórcy
 
-Stworzone ze ❤️ dla serwera **CiapongiRP**.
+Stworzone dla serwera **CiapongiRP**.
 
 - **Serwer oraz Pomysł:** [SZABLIX](https://github.com/KrolestwoSZABLIXa)
 - **Aplikacja:** [PotatoePotatoePotatoe](https://github.com/PotatoePotatoePotatoe)
 
----
-
-*Jeśli podoba Ci się projekt, zostaw gwiazdkę (⭐️) na GitHubie!*

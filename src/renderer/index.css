@@ -86,6 +86,11 @@ body::before {
   gap: 8px;
 }
 
+.title-bar-title img,
+.title-bar-title span {
+  pointer-events: none;
+}
+
 .title-bar-title span {
   background: var(--gradient-primary);
   -webkit-background-clip: text;

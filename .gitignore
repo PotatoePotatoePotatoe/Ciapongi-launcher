@@ -1,26 +1,31 @@
-﻿# Zaleznosci Node
+# Zaleznosci Node
 node_modules/
 
-# Pliki budowania (binaria, nie kod)
+# Frontend build output
 dist/
-dist-app/
+
+# Cargo & Tauri build artifacts
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Output packages
 Release/
+*.AppImage
+*.deb
+*.rpm
+*.tar.gz
+*.zip
+*.exe
+*.msi
+*.tmp
 
 # Logi i config lokalny
 launcher-latest.log
 launcher-config-local.json
 
-# Pliki systemowe
+# Pliki systemowe i IDE
 .DS_Store
 Thumbs.db
-
-# IDE
 .vscode/
 .idea/
 
-# Tymczasowe
-*.tmp
-*.exe
-*.zip
-*.tar.gz
-*.ico

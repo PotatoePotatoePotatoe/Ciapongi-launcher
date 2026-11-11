@@ -1,96 +1,26 @@
 {
   "name": "ciapongi-rp-launcher",
-  "version": "1.1.9",
-  "description": "CiapongiRP Launcher, dla paczki Ciapongi-RP",
-  "author": "Ciapongi-RP",
-  "main": "src/main/main.js",
-  "type": "commonjs",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CiapongiRP Launcher (Tauri v2 + Rust) dla paczki Ciapongi-RP",
+  "author": "Ciapongi-RP <launcher@ciapongi.pl>",
   "scripts": {
-    "dev:renderer": "vite",
-    "dev:electron": "electron .",
-    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:electron\"",
-    "build:renderer": "vite build",
-    "dist": "npm run build:renderer && electron-builder --win",
-    "dist:win32": "npm run build:renderer && electron-builder --win --ia32",
-    "dist:linux": "npm run build:renderer && electron-builder --linux"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
   },
   "dependencies": {
-    "adm-zip": "^0.5.10",
-    "axios": "^1.6.8",
-    "discord-rpc": "^4.0.1",
-    "electron-updater": "^6.8.9",
+    "@tauri-apps/api": "^2.12.4",
     "lucide-react": "^0.368.0",
-    "minecraft-launcher-core": "^3.2.2",
-    "msmc": "^5.0.5",
-    "pngjs": "^7.0.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/react": "^18.2.66",
-    "@types/react-dom": "^18.2.22",
+    "@tauri-apps/cli": "^2.12.4",
     "@vitejs/plugin-react": "^4.2.1",
-    "concurrently": "^8.2.2",
-    "electron": "^29.1.5",
-    "electron-builder": "^24.13.3",
-    "vite": "^5.1.6"
-  },
-  "build": {
-    "publish": [
-      "github"
-    ],
-    "appId": "com.ciapongirp.launcher",
-    "productName": "CiapongiRPLauncher",
-    "directories": {
-      "output": "Release"
-    },
-    "files": [
-      "dist/**/*",
-      "src/main/**/*",
-      "package.json"
-    ],
-    "win": {
-      "icon": "icon.png",
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
-        }
-      ]
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "tar.gz",
-        "deb"
-      ],
-      "icon": "icon.png",
-      "category": "Game"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Ciapongi RP Launcher",
-      "artifactName": "CiapongiRPLauncher Setup ${version}.${ext}"
-    },
-    "portable": {
-      "artifactName": "CiapongiRPLauncher ${version}.${ext}"
-    }
-  },
-  "allowScripts": {
-    "electron@29.4.6": true,
-    "esbuild@0.21.5": true
+    "vite": "^5.4.21"
   }
 }
+

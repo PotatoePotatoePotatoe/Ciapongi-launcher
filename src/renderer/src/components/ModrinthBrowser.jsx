@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Download, Check, AlertCircle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Search, Download, Check, AlertCircle, Loader2, X } from 'lucide-react';
 
 function ModrinthBrowser({ config }) {
   const [activeType, setActiveType] = useState('mod'); // 'mod', 'shader', 'resourcepack'
@@ -10,7 +10,13 @@ function ModrinthBrowser({ config }) {
   const [installingMap, setInstallingMap] = useState({});
   const [message, setMessage] = useState('');
 
-  // Pobranie aktualnie zainstalowanych własnych projektów, aby oznaczyć je jako "zainstalowane"
+  const searchRequestIdRef = useRef(0);
+  const debounceTimerRef = useRef(null);
+  const lastImmediateKeyRef = useRef('');
+
+  const installedSet = useMemo(() => new Set(installedIds), [installedIds]);
+
+  // Pobranie aktualnie zainstalowanych własnych projektów (tylko na start, przy zmianie zakładki lub po instalacji)
   const fetchInstalledProjects = useCallback(async () => {
     try {
       const userProjects = await window.api.getUserProjects(activeType);
@@ -20,28 +26,67 @@ function ModrinthBrowser({ config }) {
     }
   }, [activeType]);
 
-  const handleSearch = useCallback(async (e) => {
-    if (e) e.preventDefault();
+  const executeSearch = useCallback(async (searchText, mcVersion, type) => {
+    const reqId = ++searchRequestIdRef.current;
     setLoading(true);
     setMessage('');
     try {
-      const results = await window.api.searchModrinth(query, config.minecraftVersion, activeType);
+      const results = await window.api.searchModrinth(searchText, mcVersion, type);
+      if (reqId !== searchRequestIdRef.current) return; // Ignoruj przestarzałe odpowiedzi
       setProjects(results);
       if (results.length === 0) {
         setMessage('Nie znaleziono żadnych dodatków spełniających kryteria.');
       }
     } catch (err) {
+      if (reqId !== searchRequestIdRef.current) return;
       setMessage('Wystąpił błąd podczas wyszukiwania.');
     } finally {
-      setLoading(false);
+      if (reqId === searchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [query, config.minecraftVersion, activeType]);
+  }, []);
 
-  // Pobieramy i wyszukujemy przy zmianie typu lub na start
+  const handleSearch = useCallback((e) => {
+    if (e) e.preventDefault();
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    executeSearch(query, config.minecraftVersion, activeType);
+  }, [query, config.minecraftVersion, activeType, executeSearch]);
+
+  // Pobierz listę zainstalowanych wyłącznie przy zmianie typu (nigdy na każde naciśnięcie klawisza)
   useEffect(() => {
     fetchInstalledProjects();
-    handleSearch();
-  }, [activeType, fetchInstalledProjects, handleSearch]);
+  }, [fetchInstalledProjects]);
+
+  // Natychmiastowe wyszukiwanie przy zmianie zakładki/wersji oraz debounce 250ms podczas pisania
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
+    const immediateKey = `${activeType}::${config.minecraftVersion}`;
+    if (lastImmediateKeyRef.current !== immediateKey) {
+      lastImmediateKeyRef.current = immediateKey;
+      executeSearch(query, config.minecraftVersion, activeType);
+      return;
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
+      executeSearch(query, config.minecraftVersion, activeType);
+    }, 250);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
+  }, [query, config.minecraftVersion, activeType, executeSearch]);
 
   const handleInstall = async (projectId) => {
     if (installingMap[projectId]) return;
@@ -128,17 +173,39 @@ function ModrinthBrowser({ config }) {
       {/* Wyszukiwarka */}
       <form onSubmit={handleSearch} style={{ display: 'flex', gap: '12px' }}>
         <div style={{ position: 'relative', flexGrow: 1 }}>
-          <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
           <input 
             type="text" 
             className="form-input" 
             placeholder={headerDetails.placeholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            style={{ width: '100%', paddingLeft: '48px', height: '46px' }}
+            style={{ width: '100%', paddingLeft: '48px', paddingRight: query ? '40px' : '16px', height: '46px' }}
           />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              style={{
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '4px'
+              }}
+              title="Wyczyść wyszukiwanie"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
-        <button type="submit" className="btn btn-primary" style={{ height: '46px', gap: '8px' }} disabled={loading}>
+        <button type="submit" className="btn btn-primary" style={{ height: '46px', gap: '8px' }}>
           {loading ? <Loader2 className="animate-spin" size={16} /> : null}
           Szukaj
         </button>
@@ -154,14 +221,14 @@ function ModrinthBrowser({ config }) {
 
       {/* Siatka projektów */}
       <div style={{ flexGrow: 1, overflowY: 'auto' }}>
-        {loading ? (
+        {loading && projects.length === 0 ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
             <Loader2 className="animate-spin" size={32} style={{ color: 'var(--color-primary)' }} />
           </div>
         ) : (
-          <div className="mod-grid">
+          <div className="mod-grid" style={{ opacity: loading ? 0.65 : 1, transition: 'opacity 0.15s ease' }}>
             {projects.map(project => {
-              const isInstalled = installedIds.includes(project.id);
+              const isInstalled = installedSet.has(project.id);
               const isInMainPack = project.inMainPack;
               const isInstalling = installingMap[project.id];
 

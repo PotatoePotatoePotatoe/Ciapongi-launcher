@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CiapongiRPLauncher",
+  "version": "2.0.0",
+  "identifier": "com.ciapongirp.launcher",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Ciapongi-RP Launcher",
+        "width": 1050,
+        "height": 680,
+        "minWidth": 900,
+        "minHeight": 600,
+        "decorations": false,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Game",
+    "publisher": "Ciapongi-RP",
+    "homepage": "https://ciapongi.szablix.pl",
+    "shortDescription": "CiapongiRP Launcher (Tauri v2 + Rust) dla paczki Ciapongi-RP",
+    "longDescription": "Natywny launcher Minecraft Fabric dla serwera Ciapongi-RP z pobieraniem Javy, synchronizacja paczki modow i wyszukiwarka Modrinth.",
+    "windows": {
+      "nsis": {
+        "languages": ["Polish", "English"],
+        "displayLanguageSelector": false
+      }
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
+

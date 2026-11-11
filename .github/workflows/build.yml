@@ -1,4 +1,4 @@
-name: Build & Release
+name: Build & Release (Tauri v2)
 
 on:
   push:
@@ -8,30 +8,186 @@ on:
 
 jobs:
   build-linux:
-    name: Build Linux Release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
+    name: Build Linux Release (AppImage, DEB, tar.gz)
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
           cache: npm
 
-      - name: Install dependencies
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux Tauri dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            xdg-utils \
+            libssl-dev \
+            libgtk-3-dev
+
+      - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build renderer
-        run: npm run build:renderer
+      - name: Run Rust unit tests
+        working-directory: src-tauri
+        run: cargo test
 
-      - name: Build and publish Electron app for Linux
+      - name: Build Tauri Linux binary and bundles (DEB, AppImage, tar.gz)
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+          NO_STRIP: 'true'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          mkdir -p release-linux
+
+          npx tauri build --no-bundle
+          TAR_STAGE="release-linux/ciapongi-rp-launcher-${VERSION}"
+          mkdir -p "$TAR_STAGE"
+          cp src-tauri/target/release/ciapongi-rp-launcher "$TAR_STAGE/ciapongi-rp-launcher"
+          chmod +x "$TAR_STAGE/ciapongi-rp-launcher"
+          cp src-tauri/icons/128x128.png "$TAR_STAGE/ciapongi-rp-launcher.png"
+          tar -czf "release-linux/ciapongi-rp-launcher-${VERSION}.tar.gz" -C release-linux "ciapongi-rp-launcher-${VERSION}"
+          rm -rf "$TAR_STAGE"
+
+          npx tauri build --bundles deb,appimage
+
+          APPIMAGE_SRC=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' | head -n 1)
+          test -f "$APPIMAGE_SRC"
+          cp "$APPIMAGE_SRC" "release-linux/CiapongiRPLauncher-${VERSION}.AppImage"
+          chmod +x "release-linux/CiapongiRPLauncher-${VERSION}.AppImage"
+
+          DEB_SRC=$(find src-tauri/target/release/bundle/deb -maxdepth 1 -name '*.deb' | head -n 1)
+          test -f "$DEB_SRC"
+          cp "$DEB_SRC" "release-linux/CiapongiRPLauncher_${VERSION}_amd64.deb"
+
+          ls -lh release-linux/
+
+      - name: Upload Linux release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-bundles
+          path: release-linux/*
+
+  build-windows:
+    name: Build Windows Release (Setup EXE & Portable EXE)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run Rust unit tests
+        working-directory: src-tauri
+        run: cargo test
+
+      - name: Build Tauri Windows portable EXE and NSIS Setup
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          New-Item -ItemType Directory -Force -Path release-windows | Out-Null
+
+          npx tauri build --no-bundle
+          if ($LASTEXITCODE -ne 0) { throw "tauri build --no-bundle failed" }
+          $portable = "src-tauri/target/release/ciapongi-rp-launcher.exe"
+          if (-not (Test-Path $portable)) { throw "Missing standalone executable" }
+          Copy-Item $portable "release-windows/CiapongiRPLauncher.$version.exe"
+
+          npx tauri build --bundles nsis
+          if ($LASTEXITCODE -ne 0) { throw "tauri build --bundles nsis failed" }
+          $nsis = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
+          if (-not $nsis) { throw "Missing NSIS setup installer" }
+          Copy-Item $nsis.FullName "release-windows/CiapongiRPLauncher.Setup.$version.exe"
+
+          Get-ChildItem release-windows
+
+      - name: Upload Windows release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-bundles
+          path: release-windows/*
+
+  release:
+    name: Publish GitHub Release
+    needs: [build-linux, build-windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Extract CHANGELOG release notes for tag
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          version = tag.removeprefix("v")
+          text = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = re.compile(rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=\n## \[|\Z)", re.S | re.M)
+          m = pattern.search(text)
+          if m:
+              body = f"## [{version}]\n" + m.group(1).strip() + "\n"
+          else:
+              body = f"## [{version}]\nWydanie CiapongiRP Launcher {version}.\n"
+          Path("release_notes.md").write_text(body, encoding="utf-8")
+          PY
+          cat release_notes.md
+          ls -lh release-assets/
+
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --linux AppImage tar.gz -p always -c.publish.releaseType=release
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" release-assets/* --clobber --repo "${{ github.repository }}"
+            gh release edit "${GITHUB_REF_NAME}" --title "CiapongiRP Launcher ${GITHUB_REF_NAME}" --notes-file release_notes.md --latest --repo "${{ github.repository }}"
+          else
+            gh release create "${GITHUB_REF_NAME}" release-assets/* \
+              --repo "${{ github.repository }}" \
+              --title "CiapongiRP Launcher ${GITHUB_REF_NAME}" \
+              --notes-file release_notes.md \
+              --latest
+          fi
+

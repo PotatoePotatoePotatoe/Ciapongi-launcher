@@ -105,8 +105,17 @@ function App() {
     const unsubLog = window.api.onGameLog((log) => {
       setLogs((prev) => [...prev, log].slice(-1000));
     });
+    const unsubConfigUpdated = window.api.onConfigUpdated
+      ? window.api.onConfigUpdated((cfg) => setConfig(cfg))
+      : () => {};
 
-    return () => { unsubStatus(); unsubPackSync(); unsubLaunch(); unsubLog(); };
+    return () => {
+      unsubStatus();
+      unsubPackSync();
+      unsubLaunch();
+      unsubLog();
+      unsubConfigUpdated();
+    };
   }, []);
 
   // Globalny listener aktualizacji launchera — badge w sidebarze oraz baner statusu
@@ -176,7 +185,7 @@ function App() {
       setStatusMessage('Błąd naprawiania: ' + result.error);
       setPackSyncProgress({ status: 'error' });
     } else {
-      // Wywołanie pełnej synchronizacji po usunięciu manifestu po stronie Node
+      // Wywołanie pełnej synchronizacji po usunięciu manifestu
       const syncRes = await window.api.syncPack(true);
       if (!syncRes || !syncRes.success) {
         setStatusMessage('Błąd pobierania paczki po naprawie: ' + (syncRes?.error || 'Nieznany błąd'));
@@ -276,16 +285,16 @@ function App() {
         />
       )}
 
-      {/* Customowy Pasek Tytułowy */}
-      <div className="title-bar">
-        <div className="title-bar-title">
+      {/* Customowy Pasek Tytułowy (z obsługą Tauri drag region) */}
+      <div className="title-bar" data-tauri-drag-region>
+        <div className="title-bar-title" data-tauri-drag-region>
           <img src="https://ciapongi.szablix.pl/instalacja/server-icon.png" width="18" height="18" alt="logo" style={{ marginRight: '6px', borderRadius: '4px' }} />
           <span>Ciapongi-RP</span> Launcher
         </div>
         <div className="title-bar-controls">
-          <button className="window-btn" onClick={() => window.api.minimize()}><Minus size={14} /></button>
-          <button className="window-btn" onClick={() => window.api.maximize()}><Square size={12} /></button>
-          <button className="window-btn close-btn" onClick={() => window.api.close()}><X size={14} /></button>
+          <button type="button" className="window-btn" onClick={() => window.api.minimize()}><Minus size={14} /></button>
+          <button type="button" className="window-btn" onClick={() => window.api.maximize()}><Square size={12} /></button>
+          <button type="button" className="window-btn close-btn" onClick={() => window.api.close()}><X size={14} /></button>
         </div>
       </div>
 
@@ -468,3 +477,4 @@ function App() {
 }
 
 export default App;
+

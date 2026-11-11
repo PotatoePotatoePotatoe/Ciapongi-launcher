@@ -232,6 +232,7 @@ function Settings({ config, onSave }) {
       microsoftAuth,
       theme,
       customColors,
+      customJvmArgs,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);

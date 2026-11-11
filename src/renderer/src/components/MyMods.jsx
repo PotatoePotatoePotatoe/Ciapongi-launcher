@@ -343,7 +343,61 @@ function MyMods({ config }) {
     }
   };
 
-  // Obsługa przeciągania plików
+  const addLocalPaths = useCallback(async (filePaths) => {
+    if (!filePaths || filePaths.length === 0) return;
+
+    const isJar = activeType === 'mod';
+    const expectedExt = isJar ? '.jar' : '.zip';
+    const validPaths = filePaths.filter(p => typeof p === 'string' && p.toLowerCase().endsWith(expectedExt));
+
+    if (validPaths.length === 0) {
+      alert(`W tej zakładce możesz dodawać tylko pliki o rozszerzeniu ${expectedExt}!`);
+      return;
+    }
+
+    setLoading(true);
+    let successCount = 0;
+    const errors = [];
+
+    for (const filePath of validPaths) {
+      const fileName = filePath.split(/[/\\]/).pop() || filePath;
+      try {
+        const res = await window.api.addLocalProject(filePath, activeType);
+        if (res.success) {
+          successCount++;
+        } else {
+          errors.push(`Plik "${fileName}": ${res.error}`);
+        }
+      } catch (err) {
+        errors.push(`Plik "${fileName}": ${err.message}`);
+      }
+    }
+
+    await fetchProjects();
+
+    if (errors.length > 0) {
+      alert(`Dodano pomyślnie ${successCount} plików.\n\nWystąpiły błędy:\n${errors.join('\n')}`);
+    }
+  }, [activeType, fetchProjects]);
+
+  useEffect(() => {
+    if (!window.api || !window.api.onFileDrop) return undefined;
+    return window.api.onFileDrop((payload) => {
+      if (!payload) return;
+      if (payload.type === 'enter' || payload.type === 'over') {
+        setIsDragging(true);
+      } else if (payload.type === 'leave') {
+        setIsDragging(false);
+      } else if (payload.type === 'drop') {
+        setIsDragging(false);
+        if (Array.isArray(payload.paths) && payload.paths.length > 0) {
+          addLocalPaths(payload.paths);
+        }
+      }
+    });
+  }, [addLocalPaths]);
+
+  // Obsługa przeciągania plików (fallback HTML5)
   const handleDragOver = (e) => {
     e.preventDefault();
   };
@@ -364,42 +418,12 @@ function MyMods({ config }) {
     e.preventDefault();
     setIsDragging(false);
 
-    const files = Array.from(e.dataTransfer.files);
-    
-    // Walidacja rozszerzeń na podstawie aktywnej zakładki
-    const isJar = activeType === 'mod';
-    const expectedExt = isJar ? '.jar' : '.zip';
-    const filteredFiles = files.filter(f => f.name.toLowerCase().endsWith(expectedExt));
+    const paths = Array.from(e.dataTransfer.files || [])
+      .map(f => f.path)
+      .filter(Boolean);
 
-    if (filteredFiles.length === 0) {
-      alert(`W tej zakładce możesz dodawać tylko pliki o rozszerzeniu ${expectedExt}!`);
-      return;
-    }
-
-    setLoading(true);
-    let successCount = 0;
-    let errors = [];
-
-    for (const file of filteredFiles) {
-      const filePath = file.path;
-      if (!filePath) continue;
-
-      try {
-        const res = await window.api.addLocalProject(filePath, activeType);
-        if (res.success) {
-          successCount++;
-        } else {
-          errors.push(`Plik "${file.name}": ${res.error}`);
-        }
-      } catch (err) {
-        errors.push(`Plik "${file.name}": ${err.message}`);
-      }
-    }
-
-    await fetchProjects(); // Odśwież listę po dodaniu
-
-    if (errors.length > 0) {
-      alert(`Dodano pomyślnie ${successCount} plików.\n\nWystąpiły błędy:\n${errors.join('\n')}`);
+    if (paths.length > 0) {
+      await addLocalPaths(paths);
     }
   };
 
