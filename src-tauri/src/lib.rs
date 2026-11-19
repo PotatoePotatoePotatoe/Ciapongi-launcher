@@ -10,14 +10,47 @@ use tauri::{Emitter, Manager};
 
 use state::AppState;
 
+#[cfg(target_os = "linux")]
+pub fn setup_linux_environment() {
+    // 1. Workaround dla błędu WebKitGTK na kartach NVIDIA pod Waylandem (KDE Plasma/GNOME),
+    // który powoduje całkowicie szare/puste okno (zawieszenie renderera DMA-BUF).
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
+    // 2. Workaround dla błędu WebKitGTK 4.1 + Skia COLRv1 font rendering:
+    // Na dystrybucjach Linux (m.in. Fedora 40/41/42) z domyślną czcionką Noto-COLRv1.ttf,
+    // silnik Skia w WebKitWebProcess rzuca fatalną asercję w colrv1_configure_skpaint (vector out of bounds)
+    // i proces renderowania pada z kodem SIGABRT.
+    // Tworzymy plik reguł fontconfig odrzucający Noto-COLRv1.ttf i kierujemy FONTCONFIG_FILE na niego.
+    if std::env::var_os("FONTCONFIG_FILE").is_none() {
+        let conf_dir = std::env::temp_dir();
+        let conf_path = conf_dir.join("ciapongi_fontconfig_no_colrv1.conf");
+        let conf_content = r#"<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>
+  <include ignore_missing="yes">~/.config/fontconfig/fonts.conf</include>
+  <selectfont>
+    <rejectfont>
+      <glob>*/Noto-COLRv1.ttf</glob>
+      <pattern>
+        <patelt name="family"><string>Noto Color Emoji</string></patelt>
+      </pattern>
+    </rejectfont>
+  </selectfont>
+</fontconfig>
+"#;
+        if std::fs::write(&conf_path, conf_content).is_ok() {
+            std::env::set_var("FONTCONFIG_FILE", conf_path);
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "linux")]
-    {
-        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
-            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        }
-    }
+    setup_linux_environment();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())

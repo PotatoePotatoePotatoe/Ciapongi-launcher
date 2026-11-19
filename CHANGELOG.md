@@ -1,5 +1,12 @@
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [2.0.2]
+### Poprawiono (Fixed)
+- **Rozwiązanie krytycznego błędu FreeType / Skia COLRv1 w WebKitGTK na Linuksie (Fedora / Arch / Ubuntu):** Wyeliminowano awarię procesu `WebKitWebProcess` (błąd `Assertion '__n < this->size()' failed` w `colrv1_configure_skpaint` z kodem `SIGABRT` powodujący szary/pusty ekran po kliknięciu zakładki „Moje Pliki”).
+  - Zastąpiono surowe emoji Unicode w całym interfejsie (`MyMods.jsx`, `App.jsx`, `Settings.jsx`) wektorowymi ikonami SVG Lucide (`<FolderHeart />`, `<Package />`, `<Palette />`, `<ImageIcon />`, `<Sparkles />`, `<ShieldCheck />`, `<CheckCircle2 />`, `<AlertTriangle />`, `<Zap />`).
+  - Dodano automatyczną izolację Fontconfig w środowisku startowym Linuksa, odrzucającą wadliwe tablice fontów COLRv1 (`Noto-COLRv1.ttf`) i bezpiecznie przekierowującą zapytania na standardowe glify monochromatyczne.
+- **Optymalizacja renderowania zakładek:** Wyciszono zbędne odpytywania systemowych czcionek kolorowych w elementach nawigacyjnych i przełącznikach widoków.
+
 ## [2.0.1]
 ### Poprawiono (Fixed)
 - **Rozwiązanie problemu szarego okna pod Waylandem (NVIDIA):** Dodano automatyczną flagę `WEBKIT_DISABLE_DMABUF_RENDERER=1` przy uruchamianiu pod Linuksem, eliminując zawieszanie się renderera sprzętowego DMA-BUF w WebKitGTK na sterownikach własnościowych NVIDIA (KDE Plasma / GNOME Wayland).

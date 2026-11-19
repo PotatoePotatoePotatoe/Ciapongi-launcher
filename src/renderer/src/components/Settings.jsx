@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, AlertCircle, FolderOpen, RefreshCw, Cpu, Sparkles, Palette, User, ChevronDown } from 'lucide-react';
+import { Save, AlertCircle, FolderOpen, RefreshCw, Cpu, Sparkles, Palette, User, ChevronDown, CheckCircle2, AlertTriangle, Zap } from 'lucide-react';
 import { THEMES } from '../themes';
 
 function getCoresLabel(cores) {
@@ -87,9 +87,9 @@ function Settings({ config, onSave }) {
 
     setInstallingMods(false);
     if (errors.length === 0) {
-      setInstallStatus(`✅ Pełen pakiet 10 modów optymalizacyjnych jest gotowy i aktywny! (${installedCount}/${modsToInstall.length})`);
+      setInstallStatus(`Pełen pakiet 10 modów optymalizacyjnych jest gotowy i aktywny! (${installedCount}/${modsToInstall.length})`);
     } else {
-      setInstallStatus(`⚠️ Zainstalowano/potwierdzono ${installedCount}/${modsToInstall.length} modów. Błędy: ${errors.join('; ')}`);
+      setInstallStatus(`Zainstalowano/potwierdzono ${installedCount}/${modsToInstall.length} modów. Błędy: ${errors.join('; ')}`);
     }
   };
 
@@ -498,7 +498,7 @@ function Settings({ config, onSave }) {
                   style={{ width: '100%', height: '46px', background: 'rgba(25, 25, 35, 0.9)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', outline: 'none' }}
                 >
                   <option value="auto">Automatyczna (zależna od wersji Minecrafta)</option>
-                  <option value="17">Java 17 (LTS — MC 1.17 – 1.20.4, w tym 1.20.1 ✓)</option>
+                  <option value="17">Java 17 (LTS — MC 1.17 – 1.20.4, w tym 1.20.1)</option>
                   <option value="21">Java 21 (LTS — MC 1.20.5+, eksperymentalnie 1.20.1)</option>
                 </select>
                 <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5', paddingBottom: '4px', marginTop: '4px' }}>
@@ -529,12 +529,12 @@ function Settings({ config, onSave }) {
                   onChange={(e) => setJvmProfile(e.target.value)}
                   style={{ width: '100%', height: '46px', background: 'rgba(25, 25, 35, 0.9)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', outline: 'none' }}
                 >
-                  <option value="auto">🤖 Automatyczny (Rekomendowany — dobierany wg RAM)</option>
-                  <option value="none">⛔ Brak (Domyślne parametry Javy, brak optymalizacji)</option>
-                  <option value="ultra_potato">🥔 Ultra Potato — G1GC (≤4 GB RAM, mikro-oszczędność)</option>
-                  <option value="potato">🪨 Słaby PC — Aikar's Lite G1GC (4–8 GB RAM)</option>
-                  <option value="optimized_g1gc">⭐ Aikar's Flags G1GC (8–12 GB RAM, złoty standard)</option>
-                  <option value="extreme_zgc">🚀 Extreme ZGC (12+ GB RAM, Java 17/21, maks. płynność)</option>
+                  <option value="auto">Automatyczny (Rekomendowany — dobierany wg RAM)</option>
+                  <option value="none">Brak (Domyślne parametry Javy, brak optymalizacji)</option>
+                  <option value="ultra_potato">Ultra Potato — G1GC (≤4 GB RAM, mikro-oszczędność)</option>
+                  <option value="potato">Słaby PC — Aikar's Lite G1GC (4–8 GB RAM)</option>
+                  <option value="optimized_g1gc">Aikar's Flags G1GC (8–12 GB RAM, złoty standard)</option>
+                  <option value="extreme_zgc">Extreme ZGC (12+ GB RAM, Java 17/21, maks. płynność)</option>
                 </select>
                 <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5', marginTop: '4px' }}>
                   <b>Aikar's Flags</b> to złoty standard optymalizacji GC dla Minecraft — eliminują mikroprzycięcia (stuttering). <b>ZGC</b> daje najniższe opóźnienia pauz GC, lecz wymaga więcej RAM (min. 10–12 GB przydzielone) i Javy 17 lub 21. <b>Profil dobierany jest wg przydzielonego RAM</b> oraz wersji Javy.
@@ -651,7 +651,10 @@ function Settings({ config, onSave }) {
               {/* Panel wyboru kolorow — widoczny tylko gdy aktywny jest motyw 'custom' */}
               {theme === 'custom' && (
                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px', animation: 'fadeIn 0.2s ease' }}>
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)' }}>🎨 Własna paleta kolorów</span>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Palette size={14} />
+                    <span>Własna paleta kolorów</span>
+                  </span>
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '120px' }}>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>Kolor główny (akcent)</span>
@@ -739,8 +742,9 @@ function Settings({ config, onSave }) {
 
               {/* Pakiet modów optymalizacyjnych */}
               <div style={{ marginTop: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  ⚡ Pełen Pakiet 10 Modyfikacji Optymalizacyjnych (Fabric + Create & MTR)
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Zap size={14} />
+                  <span>Pełen Pakiet 10 Modyfikacji Optymalizacyjnych (Fabric + Create & MTR)</span>
                 </span>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -785,9 +789,11 @@ function Settings({ config, onSave }) {
                     <div style={{
                       fontSize: '12px', textAlign: 'center', fontWeight: '600',
                       padding: '6px 10px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)',
-                      color: installStatus.startsWith('✅') ? '#4ade80' : installStatus.startsWith('⚠️') ? '#facc15' : '#38bdf8'
+                      color: !installStatus.includes('Błędy:') ? '#4ade80' : '#facc15',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                     }}>
-                      {installStatus}
+                      {!installStatus.includes('Błędy:') ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                      <span>{installStatus}</span>
                     </div>
                   )}
                 </div>
@@ -808,7 +814,7 @@ function Settings({ config, onSave }) {
           </button>
           {saved && (
             <span className="fade-in" style={{ color: 'var(--color-success)', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              ✓ Zapisano automatycznie
+              <CheckCircle2 size={14} /> Zapisano automatycznie
             </span>
           )}
           {!saved && (

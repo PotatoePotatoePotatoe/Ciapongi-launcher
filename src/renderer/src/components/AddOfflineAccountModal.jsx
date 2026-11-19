@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { X, AlertCircle, UserPlus } from 'lucide-react';
 
 function AddOfflineAccountModal({ onConfirm, onClose }) {

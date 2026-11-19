@@ -1,6 +1,6 @@
 [package]
 name = "ciapongi-rp-launcher"
-version = "2.0.1"
+version = "2.0.2"
 description = "Ciapongi-RP Minecraft Launcher (Tauri v2 + Rust)"
 authors = ["Ciapongi-RP <launcher@ciapongi.pl>"]
 homepage = "https://ciapongi.szablix.pl"

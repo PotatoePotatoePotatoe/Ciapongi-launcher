@@ -10,7 +10,8 @@ import {
   X,
   RefreshCw,
   Camera,
-  ChevronDown
+  ChevronDown,
+  Sparkles
 } from 'lucide-react';
 import { THEMES, DEFAULT_THEME } from './themes';
 // === OPTYMALIZACJA LAUNCHERA: lazy loading kart — każdy tab ładuje się dopiero przy pierwszym kliknięciu ===
@@ -352,7 +353,10 @@ function App() {
           color: '#4ade80',
           zIndex: 100
         }}>
-          <span>🎉 Pobrano aktualizację launchera! Kliknij, aby zastosować i zrestartować.</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Sparkles size={14} />
+            <span>Pobrano aktualizację launchera! Kliknij, aby zastosować i zrestartować.</span>
+          </span>
           <button
             onClick={() => window.api.installLauncherUpdate()}
             className="btn btn-primary"

@@ -1,5 +1,22 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Trash2, FolderHeart, UploadCloud, RefreshCw, ArrowUpCircle, CheckCircle2, X, Layers, Search, FolderOpen } from 'lucide-react';
+import {
+  Trash2,
+  FolderHeart,
+  UploadCloud,
+  RefreshCw,
+  ArrowUpCircle,
+  CheckCircle2,
+  X,
+  Layers,
+  Search,
+  FolderOpen,
+  Package,
+  Palette,
+  Image as ImageIcon,
+  Sparkles,
+  ShieldCheck,
+  ArrowRight
+} from 'lucide-react';
 
 function VersionPickerModal({ isOpen, onClose, mod, onSelectVersion, isUpdating }) {
   const [versions, setVersions] = useState([]);
@@ -92,7 +109,8 @@ function VersionPickerModal({ isOpen, onClose, mod, onSelectVersion, isUpdating 
           alignItems: 'center',
           gap: '8px'
         }}>
-          <span>🛡️ Wyświetlane są wyłącznie oficjalne <b>stabilne wydania (Release)</b> dla Minecraft 1.20.1 Fabric (wersje beta i testowe zostały odfiltrowane).</span>
+          <ShieldCheck size={16} style={{ flexShrink: 0 }} />
+          <span>Wyświetlane są wyłącznie oficjalne <b>stabilne wydania (Release)</b> dla Minecraft 1.20.1 Fabric (wersje beta i testowe zostały odfiltrowane).</span>
         </div>
 
         {/* Modal Body / Versions List */}
@@ -243,7 +261,7 @@ function MyMods({ config }) {
       if (res.success) {
         setAvailableUpdates(res.updates || []);
         if ((res.updates || []).length === 0) {
-          setUpdateStatusMsg('Wszystkie Twoje mody są aktualne (wydania stabilne)! 🎉');
+          setUpdateStatusMsg('Wszystkie Twoje mody są aktualne (wydania stabilne)!');
           setTimeout(() => setUpdateStatusMsg(null), 4000);
         }
       } else {
@@ -509,41 +527,46 @@ function MyMods({ config }) {
           type="button" 
           className={`btn ${activeType === 'mod' ? 'btn-primary' : 'btn-outline'}`}
           onClick={() => setActiveType('mod')}
-          style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '8px' }}
+          style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          💜 Własne Mody
+          <FolderHeart size={14} />
+          <span>Własne Mody</span>
         </button>
         <button 
           type="button" 
           className={`btn ${activeType === 'pack-mod' ? 'btn-primary' : 'btn-outline'}`}
           onClick={() => setActiveType('pack-mod')}
-          style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '8px' }}
+          style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          📦 Mody Paczki Serwerowej
+          <Package size={14} />
+          <span>Mody Paczki Serwerowej</span>
         </button>
         <button 
           type="button" 
           className={`btn ${activeType === 'resourcepack' ? 'btn-primary' : 'btn-outline'}`}
           onClick={() => setActiveType('resourcepack')}
-          style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '8px' }}
+          style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          🎨 Własne Paczki Zasobów
+          <Palette size={14} />
+          <span>Własne Paczki Zasobów</span>
         </button>
         <button 
           type="button" 
           className={`btn ${activeType === 'pack-resourcepack' ? 'btn-primary' : 'btn-outline'}`}
           onClick={() => setActiveType('pack-resourcepack')}
-          style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '8px' }}
+          style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          🖼️ Paczki Zasobów z Paczki
+          <ImageIcon size={14} />
+          <span>Paczki Zasobów z Paczki</span>
         </button>
         <button 
           type="button" 
           className={`btn ${activeType === 'shader' ? 'btn-primary' : 'btn-outline'}`}
           onClick={() => setActiveType('shader')}
-          style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '8px' }}
+          style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          🌈 Shadery
+          <Sparkles size={14} />
+          <span>Shadery</span>
         </button>
       </div>
 
@@ -725,7 +748,7 @@ function MyMods({ config }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
                     <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>{upd.title}</span>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({upd.oldFilename})</span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>➔</span>
+                    <ArrowRight size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                     <span className="badge badge-success" style={{ fontSize: '11px', padding: '1px 6px' }}>
                       v{upd.newVersion} (Wydanie stabilne)
                     </span>
