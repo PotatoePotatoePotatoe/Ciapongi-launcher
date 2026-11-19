@@ -1603,6 +1603,16 @@ async fn launch_game_inner(
         .current_dir(game_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var_os("APPIMAGE").is_some() || std::env::var_os("APPDIR").is_some() {
+            if let Some(orig_ld) = std::env::var_os("LD_LIBRARY_PATH_ORIG") {
+                cmd.env("LD_LIBRARY_PATH", orig_ld);
+            } else {
+                cmd.env_remove("LD_LIBRARY_PATH");
+            }
+        }
+    }
     #[cfg(windows)]
     cmd.creation_flags(0x0800_0000);
 

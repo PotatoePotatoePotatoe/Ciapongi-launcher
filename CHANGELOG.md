@@ -1,5 +1,11 @@
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [2.0.1]
+### Poprawiono (Fixed)
+- **Rozwiązanie problemu szarego okna pod Waylandem (NVIDIA):** Dodano automatyczną flagę `WEBKIT_DISABLE_DMABUF_RENDERER=1` przy uruchamianiu pod Linuksem, eliminując zawieszanie się renderera sprzętowego DMA-BUF w WebKitGTK na sterownikach własnościowych NVIDIA (KDE Plasma / GNOME Wayland).
+- **Bezpieczne otwieranie folderów w menedżerze plików (KDE Dolphin):** Oczyszczanie zmiennych środowiskowych AppImage (`LD_LIBRARY_PATH`, `QT_PLUGIN_PATH`, `QML2_IMPORT_PATH`, `XDG_DATA_DIRS`) przed wywołaniem `xdg-open`, co zapobiega zawieszaniu się lub wyłączaniu natywnego menedżera plików z powodu konfliktów bibliotek.
+- **Izolacja środowiska procesu Minecraft/Java:** Zapewniono, że proces Javy odpalany z poziomu AppImage nie dziedziczy spakowanych bibliotek AppImage, lecz korzysta z właściwych bibliotek systemowych i sterowników graficznych.
+
 ## [2.0.0]
 ### Zmieniono (Changed)
 - **Migracja z Electron + Node.js na natywny backend Rust + Tauri v2:** Całkowite przepisanie warstwy systemowej, pobierania gry i modyfikacji na natywny kod maszynowy (zużycie RAM mniejsze o ~40%, wielokrotnie szybsze uruchamianie i lżejsza paczka bez wbudowanego Chromium/Node.js).

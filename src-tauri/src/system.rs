@@ -52,6 +52,23 @@ pub struct AddAccountInput {
     pub microsoft_auth: Option<Value>,
 }
 
+#[cfg(target_os = "linux")]
+pub fn clean_appimage_env(cmd: &mut std::process::Command) {
+    if std::env::var_os("APPIMAGE").is_some() || std::env::var_os("APPDIR").is_some() {
+        if let Some(orig_ld) = std::env::var_os("LD_LIBRARY_PATH_ORIG") {
+            cmd.env("LD_LIBRARY_PATH", orig_ld);
+        } else {
+            cmd.env_remove("LD_LIBRARY_PATH");
+        }
+        if let Some(orig_xdg) = std::env::var_os("XDG_DATA_DIRS_ORIG") {
+            cmd.env("XDG_DATA_DIRS", orig_xdg);
+        }
+        cmd.env_remove("QT_PLUGIN_PATH");
+        cmd.env_remove("QML2_IMPORT_PATH");
+        cmd.env_remove("GSETTINGS_SCHEMA_DIR");
+    }
+}
+
 fn open_path_in_os(target: &std::path::Path) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -71,8 +88,9 @@ fn open_path_in_os(target: &std::path::Path) -> Result<(), String> {
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
-        Command::new("xdg-open")
-            .arg(target)
+        let mut cmd = Command::new("xdg-open");
+        clean_appimage_env(&mut cmd);
+        cmd.arg(target)
             .spawn()
             .map_err(|e| format!("Nie udało się otworzyć ścieżki przez xdg-open: {e}"))?;
         Ok(())

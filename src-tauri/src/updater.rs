@@ -370,7 +370,9 @@ fn show_file_in_folder(file: &Path) {
     }
     #[cfg(target_os = "linux")]
     {
-        let _ = Command::new("xdg-open").arg(target).spawn();
+        let mut cmd = Command::new("xdg-open");
+        crate::system::clean_appimage_env(&mut cmd);
+        let _ = cmd.arg(target).spawn();
     }
     #[cfg(target_os = "macos")]
     {
