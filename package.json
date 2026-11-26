@@ -1,6 +1,6 @@
 {
   "name": "ciapongi-rp-launcher",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "private": true,
   "type": "module",
   "description": "CiapongiRP Launcher (Tauri v2 + Rust) dla paczki Ciapongi-RP",

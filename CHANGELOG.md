@@ -1,5 +1,11 @@
 Wszystkie znaczące zmiany w projekcie CiapongiRP Launcher będą dokumentowane w tym pliku.
 
+## [2.0.3]
+### Poprawiono (Fixed)
+- **Natywne okno wyboru katalogu gry na Linuksie (`kdialog` / `zenity`):** Zastąpiono problematyczny dialog GTK3 z `tauri-plugin-dialog` (który na Waylandzie/KDE w AppImage otwierał się ucięty w rogu ekranu i utrudniał wybór innych dysków) natywnym wywołaniem `kdialog` (KDE Plasma) lub `zenity` z wyczyszczonym środowiskiem AppImage (`clean_appimage_env`). Okno wyboru otwiera się teraz poprawnie na środku ekranu i pokazuje wszystkie zamontowane dyski oraz partycje w panelu bocznym.
+- **Usunięcie białych list wyboru w Ustawieniach na Linuksie:** Zastąpiono natywne elementy `<select>` („Wersja Javy” oraz „Profil flag JVM”) własnym ciemnym komponentem `CustomSelect` oraz dodano `color-scheme: dark;` w arkuszu stylów, eliminując problem białego tekstu na białym tle w WebKitGTK.
+- **Podpowiedź dla ścieżek dysków na Linuksie:** Dodano czytelną informację pod polem „Katalog gry (.minecraft)” o lokalizacji innych dysków (`/mnt/`, `/run/media/`).
+
 ## [2.0.2]
 ### Poprawiono (Fixed)
 - **Rozwiązanie krytycznego błędu FreeType / Skia COLRv1 w WebKitGTK na Linuksie (Fedora / Arch / Ubuntu):** Wyeliminowano awarię procesu `WebKitWebProcess` (błąd `Assertion '__n < this->size()' failed` w `colrv1_configure_skpaint` z kodem `SIGABRT` powodujący szary/pusty ekran po kliknięciu zakładki „Moje Pliki”).

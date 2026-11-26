@@ -319,23 +319,109 @@ pub async fn open_logs(state: State<'_, AppState>) -> Result<Value, String> {
     }
 }
 
-#[tauri::command]
-pub async fn select_directory(app: AppHandle) -> Option<String> {
-    let (tx, rx) = oneshot::channel();
-    app.dialog()
-        .file()
-        .set_title("Wybierz folder instalacyjny gry")
-        .pick_folder(move |folder_opt| {
-            let path_str = folder_opt.map(|fp| {
-                let fallback = fp.to_string();
-                fp.into_path()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or(fallback)
-            });
-            let _ = tx.send(path_str);
-        });
+#[cfg(target_os = "linux")]
+async fn run_linux_folder_picker_cmd(tool: &str, start_dir: &str) -> Option<Option<String>> {
+    use tokio::process::Command as AsyncCommand;
 
-    rx.await.ok().flatten()
+    let mut std_cmd = std::process::Command::new(tool);
+    clean_appimage_env(&mut std_cmd);
+    let mut cmd = AsyncCommand::from(std_cmd);
+
+    if tool == "kdialog" {
+        cmd.arg("--getexistingdirectory")
+            .arg(start_dir)
+            .arg("--title")
+            .arg("Wybierz folder instalacyjny gry");
+    } else {
+        cmd.arg("--file-selection")
+            .arg("--directory")
+            .arg("--title=Wybierz folder instalacyjny gry");
+        if !start_dir.is_empty() {
+            let with_slash = if start_dir.ends_with('/') {
+                start_dir.to_string()
+            } else {
+                format!("{start_dir}/")
+            };
+            cmd.arg(format!("--filename={with_slash}"));
+        }
+    }
+
+    match cmd.output().await {
+        Ok(out) => {
+            if out.status.success() {
+                let picked = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                Some(if picked.is_empty() { None } else { Some(picked) })
+            } else {
+                Some(None) // Użytkownik kliknął Anuluj
+            }
+        }
+        Err(_) => None, // Narzędzie niedostępne
+    }
+}
+
+#[cfg(target_os = "linux")]
+async fn pick_folder_linux_native(start_dir: &str) -> Option<Option<String>> {
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+        .unwrap_or_default()
+        .to_ascii_uppercase();
+    let order = if desktop.contains("KDE") {
+        ["kdialog", "zenity"]
+    } else {
+        ["zenity", "kdialog"]
+    };
+
+    for tool in order {
+        if let Some(res) = run_linux_folder_picker_cmd(tool, start_dir).await {
+            return Some(res);
+        }
+    }
+
+    None
+}
+
+#[tauri::command]
+pub async fn select_directory(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let start_dir = {
+        let _g = state.config_lock.lock().await;
+        let gd = state.read_config().game_dir;
+        if std::path::Path::new(&gd).exists() {
+            gd
+        } else {
+            app.path()
+                .home_dir()
+                .ok()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default()
+        }
+    };
+
+    #[cfg(target_os = "linux")]
+    if let Some(native_result) = pick_folder_linux_native(&start_dir).await {
+        return Ok(native_result);
+    }
+
+    let (tx, rx) = oneshot::channel();
+    let mut dialog = app
+        .dialog()
+        .file()
+        .set_title("Wybierz folder instalacyjny gry");
+    if !start_dir.is_empty() {
+        dialog = dialog.set_directory(&start_dir);
+    }
+    dialog.pick_folder(move |folder_opt| {
+        let path_str = folder_opt.map(|fp| {
+            let fallback = fp.to_string();
+            fp.into_path()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or(fallback)
+        });
+        let _ = tx.send(path_str);
+    });
+
+    Ok(rx.await.ok().flatten())
 }
 
 pub fn build_servers_dat_nbt(server_name: &str, server_ip: &str) -> Vec<u8> {

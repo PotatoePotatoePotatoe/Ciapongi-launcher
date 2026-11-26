@@ -8,6 +8,131 @@ function getCoresLabel(cores) {
   return 'wątków';
 }
 
+function CustomSelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    const handleKey = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [open]);
+
+  const selected = options.find((opt) => opt.value === value) || options[0];
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        style={{
+          width: '100%',
+          minHeight: '46px',
+          padding: '10px 14px',
+          background: 'rgba(25, 25, 35, 0.9)',
+          color: 'var(--text-main)',
+          border: `1px solid ${open ? 'var(--color-primary)' : 'var(--border-color)'}`,
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          fontSize: '14px',
+          fontFamily: 'inherit',
+          textAlign: 'left',
+          cursor: 'pointer',
+          outline: 'none',
+          transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+          boxShadow: open ? '0 0 12px color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'none'
+        }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selected?.label}
+        </span>
+        <ChevronDown
+          size={16}
+          style={{
+            color: 'var(--text-muted)',
+            flexShrink: 0,
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease'
+          }}
+        />
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            background: '#161622',
+            border: '1px solid var(--border-color)',
+            borderRadius: '10px',
+            padding: '6px',
+            boxShadow: '0 14px 34px rgba(0, 0, 0, 0.65)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            maxHeight: '260px',
+            overflowY: 'auto'
+          }}
+        >
+          {options.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  border: 'none',
+                  borderRadius: '7px',
+                  background: isSelected
+                    ? 'color-mix(in srgb, var(--color-primary) 22%, transparent)'
+                    : 'transparent',
+                  color: isSelected ? '#ffffff' : 'var(--text-main)',
+                  fontWeight: isSelected ? '600' : '400',
+                  fontSize: '13px',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px'
+                }}
+              >
+                <span>{opt.label}</span>
+                {isSelected && <CheckCircle2 size={14} style={{ color: 'var(--color-secondary)', flexShrink: 0 }} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Settings({ config, onSave }) {
   const isWin = window.api?.platform === 'win32' || !window.api?.platform;
   const [nickname, setNickname] = useState(config.nickname);
@@ -487,20 +612,24 @@ function Settings({ config, onSave }) {
                     <span>Wybierz</span>
                   </button>
                 </div>
+                {!isWin && (
+                  <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5', marginTop: '4px' }}>
+                    Na Linuksie inne dyski i partycje znajdują się w panelu bocznym okna wyboru lub w katalogach <code>/mnt/</code> i <code>/run/media/</code>. Możesz też wpisać ścieżkę ręcznie.
+                  </span>
+                )}
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Wersja Javy</label>
-                <select
-                  className="form-input"
+                <CustomSelect
                   value={javaVersion}
-                  onChange={(e) => setJavaVersion(e.target.value)}
-                  style={{ width: '100%', height: '46px', background: 'rgba(25, 25, 35, 0.9)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', outline: 'none' }}
-                >
-                  <option value="auto">Automatyczna (zależna od wersji Minecrafta)</option>
-                  <option value="17">Java 17 (LTS — MC 1.17 – 1.20.4, w tym 1.20.1)</option>
-                  <option value="21">Java 21 (LTS — MC 1.20.5+, eksperymentalnie 1.20.1)</option>
-                </select>
+                  onChange={setJavaVersion}
+                  options={[
+                    { value: 'auto', label: 'Automatyczna (zależna od wersji Minecrafta)' },
+                    { value: '17', label: 'Java 17 (LTS — MC 1.17 – 1.20.4, w tym 1.20.1)' },
+                    { value: '21', label: 'Java 21 (LTS — MC 1.20.5+, eksperymentalnie 1.20.1)' }
+                  ]}
+                />
                 <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5', paddingBottom: '4px', marginTop: '4px' }}>
                   Java 17 jest oficjalnie wymaganą wersją dla Minecraft 1.20.1. Java 21 działa, lecz może powodować problemy z niektórymi modami. Przy zmianie wersja zostanie pobrana automatycznie.
                 </span>
@@ -523,19 +652,18 @@ function Settings({ config, onSave }) {
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Profil flag JVM (Java Garbage Collector)</label>
-                <select
-                  className="form-input"
+                <CustomSelect
                   value={jvmProfile}
-                  onChange={(e) => setJvmProfile(e.target.value)}
-                  style={{ width: '100%', height: '46px', background: 'rgba(25, 25, 35, 0.9)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '10px', outline: 'none' }}
-                >
-                  <option value="auto">Automatyczny (Rekomendowany — dobierany wg RAM)</option>
-                  <option value="none">Brak (Domyślne parametry Javy, brak optymalizacji)</option>
-                  <option value="ultra_potato">Ultra Potato — G1GC (≤4 GB RAM, mikro-oszczędność)</option>
-                  <option value="potato">Słaby PC — Aikar's Lite G1GC (4–8 GB RAM)</option>
-                  <option value="optimized_g1gc">Aikar's Flags G1GC (8–12 GB RAM, złoty standard)</option>
-                  <option value="extreme_zgc">Extreme ZGC (12+ GB RAM, Java 17/21, maks. płynność)</option>
-                </select>
+                  onChange={setJvmProfile}
+                  options={[
+                    { value: 'auto', label: 'Automatyczny (Rekomendowany — dobierany wg RAM)' },
+                    { value: 'none', label: 'Brak (Domyślne parametry Javy, brak optymalizacji)' },
+                    { value: 'ultra_potato', label: 'Ultra Potato — G1GC (≤4 GB RAM, mikro-oszczędność)' },
+                    { value: 'potato', label: "Słaby PC — Aikar's Lite G1GC (4–8 GB RAM)" },
+                    { value: 'optimized_g1gc', label: "Aikar's Flags G1GC (8–12 GB RAM, złoty standard)" },
+                    { value: 'extreme_zgc', label: 'Extreme ZGC (12+ GB RAM, Java 17/21, maks. płynność)' }
+                  ]}
+                />
                 <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5', marginTop: '4px' }}>
                   <b>Aikar's Flags</b> to złoty standard optymalizacji GC dla Minecraft — eliminują mikroprzycięcia (stuttering). <b>ZGC</b> daje najniższe opóźnienia pauz GC, lecz wymaga więcej RAM (min. 10–12 GB przydzielone) i Javy 17 lub 21. <b>Profil dobierany jest wg przydzielonego RAM</b> oraz wersji Javy.
                 </span>
